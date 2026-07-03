@@ -275,10 +275,7 @@ function RatioChainGame() {
           )}
 
           {mode === "solo" && (
-            <div
-              className="center-hud"
-              style={{ position: "absolute", top: 8, right: 12 }}
-            >
+            <div className="center-hud center-hud-solo">
               <div className={`hud-timer ${timeLeft <= 15 ? "hud-timer-low" : ""}`}>
                 {timeLeft}
               </div>

@@ -633,19 +633,32 @@ body {
 .game-layout-duo .player-panel { flex: 1 1 42%; }
 .game-layout-duo .center-hud { flex: 0 0 16%; }
 .game-layout-solo {
+  flex-direction: column;
   justify-content: center;
   align-items: center;
   flex: 1;
   min-height: 0;
+  gap: 0.35rem;
 }
-.game-layout-solo .player-panel { flex: 0 1 640px; }
+.game-layout-solo .player-panel {
+  flex: 0 1 auto;
+  width: min(100%, 640px);
+}
+.game-layout-solo .center-hud-solo {
+  order: -1;
+  flex-direction: row;
+  padding-top: 0;
+}
+.game-layout-solo .hud-timer {
+  font-size: 2.1rem;
+  line-height: 1;
+}
 
 @media (max-width: 700px) {
   .game-layout-solo {
     padding: 0.5rem;
   }
   .game-layout-solo .player-panel {
-    flex: 1 1 100%;
     padding: 0.4rem;
   }
 }

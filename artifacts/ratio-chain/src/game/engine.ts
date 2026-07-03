@@ -12,7 +12,7 @@ import {
   newBoard,
   scoreKnown,
 } from "./logic";
-import { playCombo, playCorrect, playDrop, playFail, playSuccess } from "./sound";
+import { playCombo, playCorrect, playDrop, playFail, playSuccess, type Pan } from "./sound";
 
 export type Readout =
   | { kind: "idle" }
@@ -56,6 +56,7 @@ export class Engine {
   floatToken = 0;
   running = true;
   paused = false;
+  pan: Pan;
   private timers: number[] = [];
   private onChange: () => void;
   private onModal: (open: boolean) => void;
@@ -65,11 +66,13 @@ export class Engine {
     unknownProb: number,
     onChange: () => void,
     onModal: (open: boolean) => void,
+    pan: Pan = 0,
   ) {
     this.pool = pool;
     this.unknownProb = unknownProb;
     this.onChange = onChange;
     this.onModal = onModal;
+    this.pan = pan;
     this.grid = newBoard(pool, unknownProb);
     this.computeSeed();
   }
@@ -188,11 +191,11 @@ export class Engine {
       ok: true,
       text: `+${points} 分 (${res.numScore}×${res.lm})${note}`,
     };
-    playSuccess(res.ratios);
+    playSuccess(res.ratios, this.pan);
     if (res.ratios >= 3) {
       this.comboText = `连比 x${res.ratios}！`;
       this.comboToken++;
-      this.setTimer(() => playCombo(), 90);
+      this.setTimer(() => playCombo(this.pan), 90);
     }
     this.floatText = `+${points}`;
     this.floatToken++;
@@ -202,7 +205,7 @@ export class Engine {
         this.grid[p.r][p.c] = null;
       });
       this.grid = gravityAndRefill(this.grid, this.pool, this.unknownProb);
-      playDrop();
+      playDrop(this.pan);
       this.computeSeed();
       this.popCells = [];
       this.emit();
@@ -221,7 +224,7 @@ export class Engine {
       this.shakeLevel = 1;
       this.shakeToken++;
       this.readout = { kind: "flash", ok: false, text: msg };
-      playFail();
+      playFail(this.pan);
       this.setTimer(() => {
         this.badCells = [];
         this.emit();
@@ -249,7 +252,7 @@ export class Engine {
     this.onModal(false);
     if (choice === info.required) {
       this.unknownCorrect++;
-      playCorrect();
+      playCorrect(this.pan);
       const solved = [...vals];
       solved[info.idx] = info.required;
       const res = scoreKnown(solved);

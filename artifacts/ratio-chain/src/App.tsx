@@ -75,9 +75,11 @@ function RatioChainGame() {
         cfg.unknownProb,
         rerender,
         handleModal,
+        m === "duo" ? -1 : 0,
       );
     } else {
       engine1Ref.current.reset(pool, cfg.unknownProb);
+      engine1Ref.current.pan = m === "duo" ? -1 : 0;
     }
     engine1Ref.current.seedOn = seedOn;
     engine1Ref.current.computeSeed();
@@ -89,9 +91,11 @@ function RatioChainGame() {
           cfg.unknownProb,
           rerender,
           handleModal,
+          1,
         );
       } else {
         engine2Ref.current.reset(pool, cfg.unknownProb);
+        engine2Ref.current.pan = 1;
       }
       engine2Ref.current.seedOn = seedOn;
       engine2Ref.current.computeSeed();

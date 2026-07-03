@@ -689,12 +689,22 @@ body {
   font-variant-numeric: tabular-nums;
 }
 
+.board-shake-outer {
+  position: relative;
+  flex: 1;
+  display: flex;
+  border-radius: 1rem;
+  overflow: visible;
+  min-height: 0;
+}
 .board-shake-wrap {
   position: relative;
   flex: 1;
   display: flex;
   border-radius: 1rem;
   overflow: visible;
+  min-width: 0;
+  min-height: 0;
 }
 .shake-lv1 { animation: shake-1 0.32s ease; }
 .shake-lv2 { animation: shake-2 0.38s ease; }

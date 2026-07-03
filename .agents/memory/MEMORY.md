@@ -1,2 +1,3 @@
 - [Artifact workflow naming](artifact-workflow-naming.md) — restart_workflow needs the full "artifacts/<slug>: <service>" name, not the bare service name from artifact.toml.
 - [Testing drag/canvas games](testing-drag-canvas-games.md) — runTest mouse-drag simulation on grid-based games is flaky; verify core algorithm with a standalone tsx script instead of relying solely on e2e drags.
+- [React key remount loses listeners](react-key-remount-loses-listeners.md) — a changing `key` on an ancestor (e.g. to restart a CSS animation) unmounts descendants and silently detaches imperatively-attached DOM listeners.

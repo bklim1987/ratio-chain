@@ -93,52 +93,54 @@ export function PlayerBoard({
         <span className={`player-badge player-badge-${accent}`}>{label}</span>
         <span className="player-score">{engine.score}</span>
       </div>
-      <div
-        key={`shake-${engine.shakeToken}`}
-        className={
-          engine.shakeToken > 0 ? `board-shake-wrap shake-lv${engine.shakeLevel}` : "board-shake-wrap"
-        }
-      >
-        <div ref={boardRef} className="board-grid" data-mirror={mirror}>
-          {rows.map((r) =>
-            cols.map((c) => {
-              const v = engine.grid[r][c];
-              const key = cellKey({ r, c });
-              const classes = ["cell"];
-              if (v == null) classes.push("cell-empty");
-              if (chainSet.has(key)) classes.push("cell-selected");
-              if (popSet.has(key)) classes.push("cell-pop");
-              if (badSet.has(key)) classes.push("cell-bad");
-              if (seedSet.has(key) && v != null) classes.push("cell-seed");
-              if (deepSet.has(key) && v != null) classes.push("cell-deep");
-              return (
-                <div
-                  key={key}
-                  data-cell="true"
-                  data-r={r}
-                  data-c={c}
-                  className={classes.join(" ")}
-                >
-                  {v != null && (
-                    <div className={`gem ${gemColorClass(v)}`}>
-                      {v === WILD ? "?" : v}
-                    </div>
-                  )}
-                </div>
-              );
-            }),
+      <div ref={boardRef} className="board-shake-outer">
+        <div
+          key={`shake-${engine.shakeToken}`}
+          className={
+            engine.shakeToken > 0 ? `board-shake-wrap shake-lv${engine.shakeLevel}` : "board-shake-wrap"
+          }
+        >
+          <div className="board-grid" data-mirror={mirror}>
+            {rows.map((r) =>
+              cols.map((c) => {
+                const v = engine.grid[r][c];
+                const key = cellKey({ r, c });
+                const classes = ["cell"];
+                if (v == null) classes.push("cell-empty");
+                if (chainSet.has(key)) classes.push("cell-selected");
+                if (popSet.has(key)) classes.push("cell-pop");
+                if (badSet.has(key)) classes.push("cell-bad");
+                if (seedSet.has(key) && v != null) classes.push("cell-seed");
+                if (deepSet.has(key) && v != null) classes.push("cell-deep");
+                return (
+                  <div
+                    key={key}
+                    data-cell="true"
+                    data-r={r}
+                    data-c={c}
+                    className={classes.join(" ")}
+                  >
+                    {v != null && (
+                      <div className={`gem ${gemColorClass(v)}`}>
+                        {v === WILD ? "?" : v}
+                      </div>
+                    )}
+                  </div>
+                );
+              }),
+            )}
+          </div>
+          {engine.floatText && (
+            <div key={`float-${engine.floatToken}`} className="float-score">
+              {engine.floatText}
+            </div>
+          )}
+          {engine.comboText && (
+            <div key={`combo-${engine.comboToken}`} className="combo-banner">
+              {engine.comboText}
+            </div>
           )}
         </div>
-        {engine.floatText && (
-          <div key={`float-${engine.floatToken}`} className="float-score">
-            {engine.floatText}
-          </div>
-        )}
-        {engine.comboText && (
-          <div key={`combo-${engine.comboToken}`} className="combo-banner">
-            {engine.comboText}
-          </div>
-        )}
       </div>
       <ReadoutBar engine={engine} />
     </div>

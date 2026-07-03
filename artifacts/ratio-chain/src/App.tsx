@@ -223,6 +223,8 @@ function RatioChainGame() {
       {phase === "countdown" && <Countdown value={countdownVal} />}
 
       {phase === "playing" && e1 && (
+        <>
+        <div className="in-game-title">比例消消</div>
         <div
           className={`game-layout ${mode === "duo" ? "game-layout-duo" : "game-layout-solo"}`}
         >
@@ -281,6 +283,7 @@ function RatioChainGame() {
             <PlayerBoard engine={e2} mirror accent="p2" label="玩家二" />
           )}
         </div>
+        </>
       )}
 
       {showModal1 && e1?.modal && (

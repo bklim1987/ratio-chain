@@ -1,0 +1,292 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>比例消消 — 原型 v4（4方向 + 解未知数）</title>
+<style>
+  :root{--bg:#f4efe2;--panel:#fffdf7;--line:#e6dcc4;--ink:#3a3320;--accent:#3b5bdb;--good:#2f9e44;--bad:#e03131;--gold:#e8a800;--seed:#e8590c;--deep:#1c7ed6;--cell:60px;}
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+  html,body{margin:0;height:100%;}
+  body{background:var(--bg);color:var(--ink);font-family:"Noto Sans TC","PingFang TC","Microsoft JhengHei",system-ui,sans-serif;display:flex;flex-direction:column;align-items:center;touch-action:none;overflow:hidden;user-select:none;}
+  header{width:100%;max-width:800px;padding:10px 16px 2px;text-align:center;}
+  h1{font-size:19px;margin:4px 0 2px;}
+  .sub{font-size:12.5px;color:#8a7f61;margin:0;}
+  .hud{display:flex;gap:10px;justify-content:center;align-items:center;margin:8px auto 2px;flex-wrap:wrap;font-size:15px;}
+  .hud .box{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:6px 12px;}
+  .hud b{color:var(--accent);font-size:18px;}
+  .ctrl{display:flex;align-items:center;gap:6px;background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:4px 10px;font-size:14px;}
+  .btn{font-family:inherit;font-weight:700;color:#fff;background:var(--deep);border:none;border-radius:8px;padding:8px 14px;cursor:pointer;touch-action:manipulation;font-size:14px;}
+  .btn:disabled{opacity:.45;cursor:default;}
+  .readout{height:32px;margin:4px 0;font-size:17px;font-weight:700;display:flex;align-items:center;justify-content:center;gap:10px;min-width:320px;text-align:center;}
+  .readout .ok{color:var(--good);}.readout .no{color:var(--bad);}.readout .pts{color:var(--gold);}.readout .hint{color:#b9ad8c;font-weight:500;font-size:14px;}.readout .warn{color:var(--seed);font-weight:600;font-size:13.5px;}
+  #board{position:relative;background:var(--panel);border:2px solid var(--line);border-radius:14px;padding:6px;display:grid;gap:4px;grid-template-columns:repeat(8,var(--cell));grid-template-rows:repeat(7,var(--cell));touch-action:none;margin-top:2px;}
+  .cell{position:relative;display:flex;align-items:center;justify-content:center;}
+  .gem{width:calc(var(--cell) - 8px);height:calc(var(--cell) - 8px);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:23px;font-weight:800;background:#fff;box-shadow:0 2px 4px rgba(0,0,0,.12),inset 0 -3px 6px rgba(0,0,0,.06);transition:transform .12s ease;animation:drop .18s ease;position:relative;}
+  @keyframes drop{from{transform:translateY(-14px) scale(.9);opacity:.3;}to{transform:none;opacity:1;}}
+  .gem.sel{transform:scale(.84);outline:3px solid var(--accent);outline-offset:-2px;}
+  .gem.wild{background:#f3e8ff;}
+  .gem.seed::after{content:"";position:absolute;inset:-4px;border-radius:50%;border:3px dashed var(--seed);animation:breathe 1.4s ease-in-out infinite;}
+  .gem.deep::after{content:"";position:absolute;inset:-4px;border-radius:50%;border:3px dashed var(--deep);}
+  @keyframes breathe{0%,100%{opacity:.35;}50%{opacity:.9;}}
+  .gem.pop{animation:pop .2s ease forwards;}
+  .gem.bad{animation:badshake .4s ease;}
+  @keyframes pop{to{transform:scale(0);opacity:0;}}
+  @keyframes badshake{0%,100%{transform:translateX(0);}25%{transform:translateX(-6px);}50%{transform:translateX(6px);}75%{transform:translateX(-4px);}}
+  .v1{color:#c92a2a}.v2{color:#e8590c}.v3{color:#e67700}.v4{color:#2f9e44}.v5{color:#0ca678}.v6{color:#1971c2}.v8{color:#5f3dc4}.v9{color:#9c36b5}.v10{color:#c2255c}.v12{color:#1864ab}.v15{color:#087f5b}.v18{color:#495057}.v20{color:#a61e4d}.v24{color:#364fc7}.v36{color:#862e9c}.vwild{color:#9c36b5}
+  .ov{position:fixed;inset:0;background:rgba(40,34,20,.55);display:none;align-items:center;justify-content:center;z-index:10;}
+  .ov .card{background:var(--panel);border-radius:16px;padding:24px 28px;text-align:center;max-width:400px;box-shadow:0 10px 40px rgba(0,0,0,.25);}
+  .ov h2{margin:0 0 8px;}
+  .ov .q{font-size:22px;font-weight:800;margin:6px 0 14px;letter-spacing:1px;}
+  .opts{display:flex;gap:10px;justify-content:center;flex-wrap:wrap;}
+  .opt{font-family:inherit;font-size:22px;font-weight:800;color:var(--accent);background:#fff;border:2px solid var(--line);border-radius:12px;min-width:64px;padding:12px 16px;cursor:pointer;touch-action:manipulation;}
+  .opt:active{transform:scale(.94);}
+  .ov button.again{font-family:inherit;font-size:16px;font-weight:700;color:#fff;background:var(--accent);border:none;border-radius:10px;padding:12px 22px;margin-top:12px;cursor:pointer;}
+  .foot{font-size:12px;color:#a99e7f;margin:8px 16px;text-align:center;max-width:720px;line-height:1.5;}
+</style>
+</head>
+<body>
+<header>
+  <h1>📐 比例消消 · 原型 v4（只能横竖 · 「?」解未知数）</h1>
+  <p class="sub">只能沿横、竖方向连（不能斜）。橙圈=种子提示。连到紫色「?」会弹框让你选它该是几——这是解比例未知数。</p>
+</header>
+
+<div class="hud">
+  <div class="box">分数 <b id="score">0</b></div>
+  <div class="box">时间 <b id="time">120</b>s</div>
+  <div class="box">最长链 <b id="best">0</b></div>
+  <div class="box">最高单消 <b id="bestpts">0</b></div>
+  <button class="btn" id="deepBtn" onclick="useDeepHint()">💡 深提示</button>
+  <label class="ctrl"><input type="checkbox" id="seedToggle" checked onchange="toggleSeed()"> 种子提示</label>
+</div>
+
+<div class="readout" id="readout"><span class="hint">按住一颗宝石，沿横竖方向拖曳…</span></div>
+<div id="board"></div>
+
+<p class="foot">
+  计分：<b>数字分</b>（每段比取较大的数累加）× <b>连比倍率</b>（2段×1·3段×2·4段×3.5·5段×5）。方向敏感：6:9≠9:6。失败 −2 分。深提示会让该次得分减半。
+  「?」：链里最多含 1 个，弹框选对它的值即消（用解出的数计分，选错 −2）。
+</p>
+
+<div class="ov" id="modal"><div class="card">
+  <h2>🔍 解未知数</h2>
+  <div class="q" id="modalQ"></div>
+  <div class="opts" id="modalOpts"></div>
+</div></div>
+
+<div class="ov" id="overlay"><div class="card">
+  <h2 id="ovTitle">时间到！</h2><p id="ovBody"></p>
+  <button class="again" onclick="restart()">再玩一场</button>
+</div></div>
+
+<script>
+const COLS=8, ROWS=7, GAME_SEC=120;
+const POOL_WEIGHTS={1:5,2:7,3:7,4:8,5:6,6:10,8:6,9:6,10:7,12:9,15:5,18:7,20:5,24:6,36:6};
+const WILD='?', UNKNOWN_PROB=0.06;
+const WEIGHTED=[]; for(const[n,w]of Object.entries(POOL_WEIGHTS)) for(let i=0;i<w;i++) WEIGHTED.push(+n);
+const N4=[[0,-1],[-1,0],[1,0],[0,1]];               // 只横竖
+
+let grid, score, bestChain, bestPts, startT, running, timeTimer, paused=false, pauseStart=0;
+let seed=[], deepCells=[], deepPenalty=false, seedOn=true;
+const boardEl=document.getElementById('board');
+
+function gcd(a,b){return b?gcd(b,a%b):a;}
+function randVal(){ return Math.random()<UNKNOWN_PROB ? WILD : WEIGHTED[Math.floor(Math.random()*WEIGHTED.length)]; }
+function shuffle(a){for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];}return a;}
+
+function buildCells(){ boardEl.innerHTML=''; for(let r=0;r<ROWS;r++)for(let c=0;c<COLS;c++){ const d=document.createElement('div'); d.className='cell'; d.dataset.r=r; d.dataset.c=c; boardEl.appendChild(d); } }
+function inSeed(r,c){ return seed.some(p=>p.r===r&&p.c===c); }
+function inDeep(r,c){ return deepCells.some(p=>p.r===r&&p.c===c); }
+function render(anim){
+  for(let r=0;r<ROWS;r++)for(let c=0;c<COLS;c++){
+    const cell=boardEl.children[r*COLS+c], v=grid[r][c];
+    if(v==null){ cell.innerHTML=''; continue; }
+    let g=cell.firstChild; if(!g){ g=document.createElement('div'); cell.appendChild(g); }
+    g.textContent=v===WILD?'?':v;
+    let cls='gem '+(v===WILD?'vwild wild':'v'+v);
+    const selected=chain.some(p=>p.r===r&&p.c===c);
+    if(selected) cls+=' sel'; else { if(inSeed(r,c)) cls+=' seed'; if(inDeep(r,c)) cls+=' deep'; }
+    g.className=cls;
+    if(!anim) g.style.animation='none';
+  }
+}
+
+// ---------- ratio eval ----------
+function evaluate(vals){ // all-known validity
+  if(vals.length<4||vals.length%2!==0) return false;
+  let ref=null;
+  for(let i=0;i<vals.length;i+=2){ const a=vals[i],b=vals[i+1]; if(a===WILD||b===WILD) return false; const g=gcd(a,b),k=(a/g)+':'+(b/g); if(ref==null)ref=k; else if(ref!==k) return false; }
+  return ref!=null;
+}
+const LEN_MULT={2:1,3:2,4:3.5,5:5};
+function lenMult(r){ return LEN_MULT[r] || (7+(r-6)*2); }
+function scoreKnown(vals){ // vals fully known
+  if(!evaluate(vals)) return null;
+  const pairs=[]; for(let i=0;i<vals.length;i+=2) pairs.push([vals[i],vals[i+1]]);
+  let numScore=0;
+  for(const[a,b]of pairs){ numScore+=Math.max(a,b); }
+  const ratios=pairs.length, lm=lenMult(ratios);
+  return {points:Math.max(1,Math.round(numScore*lm)), numScore, ratios, lm,
+    text:pairs.map(([a,b])=>a+':'+b).join(' = ')};
+}
+
+// analyze a submitted chain (may contain one WILD)
+function analyzeChain(vals){
+  if(vals.length<4||vals.length%2!==0) return {type:'invalid'};
+  const wilds=[]; vals.forEach((v,i)=>{ if(v===WILD) wilds.push(i); });
+  if(wilds.length===0) return {type:'known'};
+  if(wilds.length>1) return {type:'invalid', reason:'一次只能解 1 个未知数'};
+  const pairs=[]; for(let i=0;i<vals.length;i+=2) pairs.push([vals[i],vals[i+1]]);
+  let ref=null;
+  for(const[a,b]of pairs){ if(a===WILD||b===WILD) continue; const g=gcd(a,b),k=(a/g)+':'+(b/g); if(ref==null)ref=k; else if(ref!==k) return {type:'invalid', reason:'已知的比就不相等'}; }
+  if(ref==null) return {type:'invalid', reason:'需至少一组已知的比'};
+  const [rp,rq]=ref.split(':').map(Number);
+  const wi=wilds[0], pi=Math.floor(wi/2), [a,b]=pairs[pi];
+  let required;
+  if(a===WILD){ if((b*rp)%rq!==0) return {type:'invalid', reason:'这里填不出整数'}; required=b*rp/rq; }
+  else       { if((a*rq)%rp!==0) return {type:'invalid', reason:'这里填不出整数'}; required=a*rq/rp; }
+  if(required<=0) return {type:'invalid', reason:'填不出正整数'};
+  return {type:'unknown', idx:wi, required, ref:[rp,rq]};
+}
+
+// ---------- find valid all-known chain (hints & solvability); skips WILD ----------
+function findChainCoords(L){
+  const order=[]; for(let r=0;r<ROWS;r++)for(let c=0;c<COLS;c++) order.push([r,c]); shuffle(order);
+  const used=Array.from({length:ROWS},()=>Array(COLS).fill(false)); const path=[], co=[];
+  function consistent(){ let ref=null; for(let i=0;i+1<path.length;i+=2){const a=path[i],b=path[i+1];const g=gcd(a,b),k=(a/g)+':'+(b/g); if(ref==null)ref=k; else if(ref!==k)return false;} return true; }
+  function ok(r,c){ return grid[r][c]!=null && grid[r][c]!==WILD; }
+  function dfs(r,c){
+    used[r][c]=true; path.push(grid[r][c]); co.push({r,c});
+    if(path.length%2===0 && !consistent()){ used[r][c]=false; path.pop(); co.pop(); return null; }
+    if(path.length===L && evaluate(path)){ const R=co.slice(); used[r][c]=false; path.pop(); co.pop(); return R; }
+    if(path.length<L) for(const[dc,dr]of shuffle(N4.slice())){ const nr=r+dr,nc=c+dc; if(nr<0||nr>=ROWS||nc<0||nc>=COLS||used[nr][nc]||!ok(nr,nc)) continue; const g=dfs(nr,nc); if(g){ used[r][c]=false; path.pop(); co.pop(); return g; } }
+    used[r][c]=false; path.pop(); co.pop(); return null;
+  }
+  for(const[r,c]of order){ if(!ok(r,c)) continue; const g=dfs(r,c); if(g) return g; }
+  return null;
+}
+function findAnyValidChain(){ return !!findChainCoords(4); }
+function computeSeed(){ if(!seedOn){ seed=[]; return; } const ch=findChainCoords(4); seed = ch ? [ch[0], ch[1]] : []; }
+
+// ---------- board ----------
+function newBoardValues(){ do{ grid=Array.from({length:ROWS},()=>Array.from({length:COLS},()=>randVal())); } while(!findAnyValidChain()); }
+function gravityAndRefill(){
+  for(let c=0;c<COLS;c++){ const kept=[]; for(let r=0;r<ROWS;r++) if(grid[r][c]!=null) kept.push(grid[r][c]);
+    const need=ROWS-kept.length, col=[]; for(let i=0;i<need;i++) col.push(randVal()); for(const v of kept) col.push(v); for(let r=0;r<ROWS;r++) grid[r][c]=col[r]; }
+  let t=0; while(!findAnyValidChain() && t++<20){ for(let r=0;r<ROWS;r++)for(let c=0;c<COLS;c++) grid[r][c]=randVal(); }
+}
+
+// ---------- drag (4-directional) ----------
+let chain=[], dragging=false;
+function cellFromPoint(x,y){ const el=document.elementFromPoint(x,y); if(!el) return null; const c=el.closest('.cell'); if(!c||!boardEl.contains(c)) return null; return {r:+c.dataset.r, c:+c.dataset.c}; }
+function adjacent(a,b){ return (Math.abs(a.r-b.r)+Math.abs(a.c-b.c))===1; }   // 4-dir
+function hasGem(p){ return grid[p.r][p.c]!=null; }
+function startDrag(x,y){ if(!running||paused) return; const p=cellFromPoint(x,y); if(!p||!hasGem(p)) return; dragging=true; chain=[p]; render(false); updateReadout(); }
+function moveDrag(x,y){
+  if(!dragging) return; const p=cellFromPoint(x,y); if(!p) return;
+  const last=chain[chain.length-1]; if(p.r===last.r&&p.c===last.c) return;
+  if(chain.length>=2){ const prev=chain[chain.length-2]; if(p.r===prev.r&&p.c===prev.c){ chain.pop(); render(false); updateReadout(); return; } }
+  if(chain.some(q=>q.r===p.r&&q.c===p.c)) return;
+  if(!adjacent(last,p)||!hasGem(p)) return;
+  chain.push(p); render(false); updateReadout();
+}
+function endDrag(){
+  if(!dragging) return; dragging=false;
+  const vals=chain.map(p=>grid[p.r][p.c]);
+  const info=analyzeChain(vals);
+  if(info.type==='known'){ const res=scoreKnown(vals); if(res) return succeed(res); return fail('比不相等，−2 分'); }
+  if(info.type==='unknown'){ return openModal(vals, info); }
+  return fail(info.reason||'无效', false);
+}
+
+function succeed(res, note=''){
+  if(deepPenalty){ res.points=Math.max(1,Math.round(res.points*0.5)); note+='　(深提示:得分减半)'; deepPenalty=false; }
+  score+=res.points; bestChain=Math.max(bestChain,chain.length); bestPts=Math.max(bestPts,res.points);
+  const cells=chain.map(p=>boardEl.children[p.r*COLS+p.c].firstChild).filter(Boolean); cells.forEach(g=>g.classList.add('pop'));
+  const toClear=[...chain]; chain=[]; deepCells=[];
+  setTimeout(()=>{ toClear.forEach(p=>grid[p.r][p.c]=null); gravityAndRefill(); computeSeed(); render(true); updateHUD(); },200);
+  const combo=res.ratios>=3?`　🔥${res.ratios}连比`:'';
+  flash(true, `+${res.points}　<span style="font-weight:500;color:#8a7f61">数字${res.numScore} × 长度${res.lm}</span>${combo}${note}`);
+}
+function fail(msg, shake=true){
+  if(shake && chain.length>=2){ score=Math.max(0,score-2);
+    const cells=chain.map(p=>boardEl.children[p.r*COLS+p.c].firstChild).filter(Boolean); cells.forEach(g=>g.classList.add('bad'));
+    setTimeout(()=>cells.forEach(g=>g.classList.remove('bad')),420); flash(false,msg);
+  } else if(chain.length>=2){ flash(false,msg); }
+  chain=[]; render(false); updateHUD();
+}
+
+// ---------- solve-unknown modal ----------
+function pauseTimer(){ paused=true; pauseStart=performance.now(); }
+function resumeTimer(){ if(paused){ startT+=performance.now()-pauseStart; paused=false; tick(); } }
+function makeOptions(required, ref){
+  const [rp,rq]=ref; const set=new Set([required]); const out=[];
+  const cand=[Math.round(required*rq/rp), required*2, Math.max(1,required-1), required+1, Math.round(required*rp/rq), required+2, required*3, Math.max(1,Math.round(required/2))];
+  for(const x of cand){ if(Number.isInteger(x) && x>0 && !set.has(x)){ set.add(x); out.push(x); } if(out.length>=3) break; }
+  let extra=required+3; while(out.length<3){ if(!set.has(extra)){ set.add(extra); out.push(extra); } extra++; }
+  return shuffle([required, ...out]);
+}
+function openModal(vals, info){
+  pauseTimer();
+  const disp=vals.map(v=>v===WILD?'?':v);
+  // build "a:b = c:d" with ? highlighted
+  const pairsTxt=[]; for(let i=0;i<disp.length;i+=2) pairsTxt.push(disp[i]+':'+disp[i+1]);
+  document.getElementById('modalQ').innerHTML = pairsTxt.join(' = ').replace('?','<span style="color:var(--seed)">?</span>') + '　—— ? = ?';
+  const opts=makeOptions(info.required, info.ref);
+  const box=document.getElementById('modalOpts'); box.innerHTML='';
+  for(const o of opts){ const b=document.createElement('button'); b.className='opt'; b.textContent=o; b.onclick=()=>pickAnswer(o, info, vals); box.appendChild(b); }
+  document.getElementById('modal').style.display='flex';
+}
+function pickAnswer(choice, info, vals){
+  document.getElementById('modal').style.display='none';
+  resumeTimer();
+  if(choice===info.required){
+    const solved=vals.slice(); solved[info.idx]=info.required;   // replace ? with solved value
+    const res=scoreKnown(solved);
+    if(res) succeed(res, '　🔍解出未知数');
+    else { chain=[]; render(false); }   // safety (shouldn't happen)
+  } else {
+    fail('未知数选错了，−2 分');
+  }
+}
+
+// ---------- deep hint ----------
+function useDeepHint(){
+  if(!running||paused) return;
+  const ch=findChainCoords(4); if(!ch) return;
+  deepCells=ch; deepPenalty=true; render(false);
+  const btn=document.getElementById('deepBtn'); btn.disabled=true; setTimeout(()=>btn.disabled=false,2500);
+  document.getElementById('readout').innerHTML='<span class="warn">💡 深提示：这 4 格可消</span>';
+  setTimeout(()=>{ deepCells=[]; render(false); if(!dragging) updateReadout(); },3500);
+}
+function toggleSeed(){ seedOn=document.getElementById('seedToggle').checked; computeSeed(); render(false); }
+
+function updateReadout(){
+  const el=document.getElementById('readout');
+  if(chain.length===0){ el.innerHTML='<span class="hint">按住一颗宝石，沿横竖方向拖曳…</span>'; return; }
+  const vals=chain.map(p=>grid[p.r][p.c]); const disp=vals.map(v=>v===WILD?'?':v).join(' → ');
+  if(chain.length<4||chain.length%2!==0){ el.innerHTML=`<span>${disp}</span><span class="hint">（需偶数≥4）</span>`; return; }
+  const info=analyzeChain(vals);
+  if(info.type==='known'){ const res=scoreKnown(vals); el.innerHTML = res?`<span>${res.text}</span><span class="ok">✓</span><span class="pts">预计 +${res.points}</span>`:`<span>${disp}</span><span class="no">✗</span>`; }
+  else if(info.type==='unknown'){ el.innerHTML=`<span>${disp}</span><span class="warn">松手解未知数 ?</span>`; }
+  else { el.innerHTML=`<span>${disp}</span><span class="no">✗ ${info.reason||''}</span>`; }
+}
+function flash(ok,msg){ const el=document.getElementById('readout'); el.innerHTML=`<span class="${ok?'ok':'no'}">${ok?'✓':'✗'}</span><span>${msg}</span>`; setTimeout(()=>{ if(!dragging) updateReadout(); }, ok?1200:1100); }
+function updateHUD(){ document.getElementById('score').textContent=score; document.getElementById('best').textContent=bestChain; document.getElementById('bestpts').textContent=bestPts; }
+
+boardEl.addEventListener('pointerdown',e=>{ e.preventDefault(); startDrag(e.clientX,e.clientY); });
+window.addEventListener('pointermove',e=>{ if(dragging){ e.preventDefault(); moveDrag(e.clientX,e.clientY);} },{passive:false});
+window.addEventListener('pointerup',endDrag); window.addEventListener('pointercancel',endDrag);
+
+function tick(){ if(!running||paused) return; const left=GAME_SEC-Math.floor((performance.now()-startT)/1000); document.getElementById('time').textContent=Math.max(0,left); if(left<=0) return gameOver(); timeTimer=requestAnimationFrame(tick); }
+function gameOver(){ running=false; cancelAnimationFrame(timeTimer); document.getElementById('ovBody').innerHTML=`得分 <b>${score}</b><br>最长链 <b>${bestChain}</b> 格　最高单消 <b>${bestPts}</b> 分`; document.getElementById('overlay').style.display='flex'; }
+function restart(){
+  document.getElementById('overlay').style.display='none'; document.getElementById('modal').style.display='none';
+  score=0; bestChain=0; bestPts=0; chain=[]; dragging=false; deepCells=[]; deepPenalty=false; paused=false;
+  newBoardValues(); computeSeed(); render(false); updateHUD(); updateReadout();
+  running=true; startT=performance.now(); tick();
+}
+buildCells(); restart();
+</script>
+</body>
+</html>

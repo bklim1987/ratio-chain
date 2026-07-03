@@ -213,7 +213,9 @@ function RatioChainGame() {
   const showModal2 = phase === "playing" && mode === "duo" && e2?.modal;
 
   return (
-    <div className="game-root">
+    <div
+      className={`game-root ${phase === "playing" && mode === "duo" ? "game-root-bottom" : ""}`}
+    >
       {phase === "menu" && (
         <StartMenu
           onStart={beginMatch}
@@ -228,7 +230,7 @@ function RatioChainGame() {
 
       {phase === "playing" && e1 && (
         <>
-        <div className="in-game-title">比例消消</div>
+        {mode === "duo" && <div className="in-game-title">比例消消</div>}
         <div
           className={`game-layout ${mode === "duo" ? "game-layout-duo" : "game-layout-solo"}`}
         >

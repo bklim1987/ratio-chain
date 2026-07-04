@@ -6,11 +6,14 @@ export function SolveModal({
   info,
   onPick,
   accent,
+  scope = "screen",
 }: {
   vals: Cell[];
   info: Extract<ChainAnalysis, { type: "unknown" }>;
   onPick: (n: number) => void;
   accent: "p1" | "p2";
+  /** panel = 仅覆盖该玩家侧；screen = 全屏（单人模式） */
+  scope?: "panel" | "screen";
 }) {
   const options = useMemo(
     () => makeOptions(info.required, info.ref),
@@ -25,7 +28,9 @@ export function SolveModal({
   }
 
   return (
-    <div className={`modal-overlay modal-overlay-${accent}`}>
+    <div
+      className={`modal-overlay modal-overlay-${scope} modal-overlay-${accent}`}
+    >
       <div className="modal-card">
         <h2 className="modal-title">解出未知数 ?</h2>
         <div className="modal-question">{pairs.join("  =  ")}</div>
@@ -33,8 +38,13 @@ export function SolveModal({
           {options.map((o) => (
             <button
               key={o}
+              type="button"
               className="modal-option-btn"
-              onClick={() => onPick(o)}
+              onPointerDown={(e) => {
+                e.stopPropagation();
+                if (e.pointerType === "mouse" && e.button !== 0) return;
+                onPick(o);
+              }}
             >
               {o}
             </button>

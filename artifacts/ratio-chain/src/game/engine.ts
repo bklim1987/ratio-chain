@@ -59,19 +59,16 @@ export class Engine {
   pan: Pan;
   private timers: number[] = [];
   private onChange: () => void;
-  private onModal: (open: boolean) => void;
 
   constructor(
     pool: number[],
     unknownProb: number,
     onChange: () => void,
-    onModal: (open: boolean) => void,
     pan: Pan = 0,
   ) {
     this.pool = pool;
     this.unknownProb = unknownProb;
     this.onChange = onChange;
-    this.onModal = onModal;
     this.pan = pan;
     this.grid = newBoard(pool, unknownProb);
     this.computeSeed();
@@ -241,7 +238,6 @@ export class Engine {
   private openModal(vals: Cell[], info: Extract<ChainAnalysis, { type: "unknown" }>) {
     this.modal = { vals, info };
     this.unknownAttempts++;
-    this.onModal(true);
     this.emit();
   }
 
@@ -249,7 +245,6 @@ export class Engine {
     if (!this.modal) return;
     const { vals, info } = this.modal;
     this.modal = null;
-    this.onModal(false);
     if (choice === info.required) {
       this.unknownCorrect++;
       playCorrect(this.pan);
@@ -270,7 +265,6 @@ export class Engine {
   closeModalAsFail() {
     if (!this.modal) return;
     this.modal = null;
-    this.onModal(false);
     this.fail("未作答，−2 分");
   }
 

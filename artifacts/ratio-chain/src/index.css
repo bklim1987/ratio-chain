@@ -427,7 +427,6 @@ html, body, #root {
 }
 
 body {
-  touch-action: none;
   overflow: hidden;
   user-select: none;
   -webkit-user-select: none;
@@ -700,6 +699,7 @@ body {
 
 /* ---------- Player panel ---------- */
 .player-panel {
+  position: relative;
   display: flex;
   flex-direction: column;
   background: hsl(245 30% 12% / 0.7);
@@ -742,6 +742,7 @@ body {
   border-radius: 1rem;
   overflow: visible;
   min-height: 0;
+  touch-action: none;
 }
 .board-shake-wrap {
   position: relative;
@@ -923,14 +924,32 @@ body {
 
 /* ---------- Modal ---------- */
 .modal-overlay {
-  position: fixed;
-  inset: 0;
-  background: rgba(5, 5, 15, 0.65);
   display: flex;
   align-items: center;
   justify-content: center;
-  z-index: 50;
   animation: fade-in 0.15s ease;
+  touch-action: manipulation;
+  pointer-events: auto;
+}
+.modal-overlay-screen {
+  position: fixed;
+  inset: 0;
+  background: rgba(5, 5, 15, 0.65);
+  z-index: 50;
+}
+.modal-overlay-panel {
+  position: absolute;
+  inset: 0;
+  background: rgba(5, 5, 15, 0.72);
+  border-radius: inherit;
+  z-index: 20;
+}
+.modal-overlay-panel .modal-card {
+  width: min(380px, 92%);
+  padding: 1.25rem 1.5rem;
+}
+.modal-overlay-panel .modal-question {
+  font-size: 1.35rem;
 }
 @keyframes fade-in { from { opacity: 0; } to { opacity: 1; } }
 
@@ -964,6 +983,7 @@ body {
   font-size: 1.4rem;
   font-weight: 800;
   cursor: pointer;
+  touch-action: manipulation;
   transition: transform 0.12s ease, background 0.12s ease;
 }
 .modal-option-btn:hover { transform: translateY(-2px); background: hsl(262 70% 38%); }

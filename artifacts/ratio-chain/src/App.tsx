@@ -15,7 +15,6 @@ import { setMuted, playCountdownBeep, playGo } from "@/game/sound";
 import { StartMenu } from "@/components/StartMenu";
 import { Countdown } from "@/components/Countdown";
 import { PlayerBoard } from "@/components/PlayerBoard";
-import { SolveModal } from "@/components/SolveModal";
 import {
   MatchEndScreen,
   RoundEndScreen,
@@ -41,21 +40,11 @@ function RatioChainGame() {
 
   const engine1Ref = useRef<Engine | null>(null);
   const engine2Ref = useRef<Engine | null>(null);
-  const modalOpenCountRef = useRef(0);
   const rafRef = useRef<number | null>(null);
   const startTimeRef = useRef(0);
-  const pausedAccumRef = useRef(0);
-  const pauseStartRef = useRef<number | null>(null);
   const totalSecondsRef = useRef(ROUND_SECONDS);
 
   const rerender = useCallback(() => forceTick((t) => t + 1), []);
-
-  const handleModal = useCallback((open: boolean) => {
-    modalOpenCountRef.current = Math.max(
-      0,
-      modalOpenCountRef.current + (open ? 1 : -1),
-    );
-  }, []);
 
   useEffect(() => {
     setMuted(muted);
@@ -74,7 +63,6 @@ function RatioChainGame() {
         pool,
         cfg.unknownProb,
         rerender,
-        handleModal,
         m === "duo" ? -1 : 0,
       );
     } else {
@@ -90,7 +78,6 @@ function RatioChainGame() {
           pool,
           cfg.unknownProb,
           rerender,
-          handleModal,
           1,
         );
       } else {
@@ -108,7 +95,6 @@ function RatioChainGame() {
     setRoundIndex(0);
     setRoundsWon([0, 0]);
     setRoundScores([]);
-    modalOpenCountRef.current = 0;
     startEngines(0, selectedMode);
     setCountdownVal(3);
     setPhase("countdown");
@@ -150,28 +136,14 @@ function RatioChainGame() {
     rerender();
   };
 
-  // round timer via rAF, pausable while any modal is open
+  // round timer via rAF
   useEffect(() => {
     if (phase !== "playing") return;
     totalSecondsRef.current = mode === "duo" ? ROUND_SECONDS : SOLO_SECONDS;
     startTimeRef.current = performance.now();
-    pausedAccumRef.current = 0;
-    pauseStartRef.current = null;
 
     function tick() {
-      if (modalOpenCountRef.current > 0) {
-        if (pauseStartRef.current == null) {
-          pauseStartRef.current = performance.now();
-        }
-        rafRef.current = requestAnimationFrame(tick);
-        return;
-      } else if (pauseStartRef.current != null) {
-        pausedAccumRef.current += performance.now() - pauseStartRef.current;
-        pauseStartRef.current = null;
-      }
-      const elapsed =
-        (performance.now() - startTimeRef.current - pausedAccumRef.current) /
-        1000;
+      const elapsed = (performance.now() - startTimeRef.current) / 1000;
       const left = Math.max(0, totalSecondsRef.current - Math.floor(elapsed));
       setTimeLeft(left);
       if (left <= 0) {
@@ -209,8 +181,6 @@ function RatioChainGame() {
 
   const e1 = engine1Ref.current;
   const e2 = engine2Ref.current;
-  const showModal1 = phase === "playing" && e1?.modal;
-  const showModal2 = phase === "playing" && mode === "duo" && e2?.modal;
 
   return (
     <div
@@ -234,7 +204,7 @@ function RatioChainGame() {
         <div
           className={`game-layout ${mode === "duo" ? "game-layout-duo" : "game-layout-solo"}`}
         >
-          <PlayerBoard engine={e1} accent="p1" label="玩家一" />
+          <PlayerBoard engine={e1} accent="p1" label="玩家一" mode={mode} />
 
           {mode === "duo" && (
             <div className="center-hud">
@@ -283,33 +253,10 @@ function RatioChainGame() {
           )}
 
           {mode === "duo" && e2 && (
-            <PlayerBoard engine={e2} mirror accent="p2" label="玩家二" />
+            <PlayerBoard engine={e2} mirror accent="p2" label="玩家二" mode={mode} />
           )}
         </div>
         </>
-      )}
-
-      {showModal1 && e1?.modal && (
-        <SolveModal
-          vals={e1.modal.vals}
-          info={e1.modal.info}
-          onPick={(n) => {
-            e1.pickAnswer(n);
-            rerender();
-          }}
-          accent="p1"
-        />
-      )}
-      {showModal2 && e2?.modal && (
-        <SolveModal
-          vals={e2.modal.vals}
-          info={e2.modal.info}
-          onPick={(n) => {
-            e2.pickAnswer(n);
-            rerender();
-          }}
-          accent="p2"
-        />
       )}
 
       {phase === "roundEnd" && (

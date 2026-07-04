@@ -1,6 +1,8 @@
 import { useEffect, useRef } from "react";
 import { COLS, ROWS, WILD, type Cell, type Pos } from "@/game/logic";
 import type { Engine } from "@/game/engine";
+import type { Mode } from "@/game/types";
+import { SolveModal } from "@/components/SolveModal";
 
 function cellKey(p: Pos) {
   return `${p.r}-${p.c}`;
@@ -10,6 +12,8 @@ function useBoardPointerHandlers(
   engine: Engine,
   boardRef: React.RefObject<HTMLDivElement | null>,
 ) {
+  const activePointersRef = useRef(new Set<number>());
+
   useEffect(() => {
     const boardEl = boardRef.current;
     if (!boardEl) return;
@@ -28,32 +32,45 @@ function useBoardPointerHandlers(
     }
 
     function onDown(e: PointerEvent) {
+      if (engine.modal) return;
       const p = cellFromPoint(e.clientX, e.clientY);
-      if (p) {
-        e.preventDefault();
-        engine.pointerDown(p);
+      if (!p) return;
+      e.preventDefault();
+      activePointersRef.current.add(e.pointerId);
+      try {
+        boardEl!.setPointerCapture(e.pointerId);
+      } catch {
+        /* ignore if capture unsupported */
       }
+      engine.pointerDown(p);
     }
     function onMove(e: PointerEvent) {
+      if (!activePointersRef.current.has(e.pointerId)) return;
       if (!engine.dragging) return;
       e.preventDefault();
       const p = cellFromPoint(e.clientX, e.clientY);
       if (p) engine.pointerMove(p);
     }
     function onUp(e: PointerEvent) {
+      if (!activePointersRef.current.delete(e.pointerId)) return;
+      try {
+        boardEl!.releasePointerCapture(e.pointerId);
+      } catch {
+        /* ignore */
+      }
       if (!engine.dragging) return;
       e.preventDefault();
       engine.pointerUp();
     }
     boardEl.addEventListener("pointerdown", onDown);
-    window.addEventListener("pointermove", onMove, { passive: false });
-    window.addEventListener("pointerup", onUp);
-    window.addEventListener("pointercancel", onUp);
+    boardEl.addEventListener("pointermove", onMove, { passive: false });
+    boardEl.addEventListener("pointerup", onUp);
+    boardEl.addEventListener("pointercancel", onUp);
     return () => {
       boardEl.removeEventListener("pointerdown", onDown);
-      window.removeEventListener("pointermove", onMove);
-      window.removeEventListener("pointerup", onUp);
-      window.removeEventListener("pointercancel", onUp);
+      boardEl.removeEventListener("pointermove", onMove);
+      boardEl.removeEventListener("pointerup", onUp);
+      boardEl.removeEventListener("pointercancel", onUp);
     };
   }, [engine, boardRef]);
 }
@@ -68,11 +85,13 @@ export function PlayerBoard({
   mirror = false,
   accent,
   label,
+  mode = "duo",
 }: {
   engine: Engine;
   mirror?: boolean;
   accent: "p1" | "p2";
   label: string;
+  mode?: Mode;
 }) {
   const boardRef = useRef<HTMLDivElement | null>(null);
   useBoardPointerHandlers(engine, boardRef);
@@ -143,6 +162,15 @@ export function PlayerBoard({
         </div>
       </div>
       <ReadoutBar engine={engine} />
+      {engine.modal && (
+        <SolveModal
+          vals={engine.modal.vals}
+          info={engine.modal.info}
+          onPick={(n) => engine.pickAnswer(n)}
+          accent={accent}
+          scope={mode === "duo" ? "panel" : "screen"}
+        />
+      )}
     </div>
   );
 }

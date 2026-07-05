@@ -7,9 +7,11 @@ import {
   type ScoreResult,
   adjacent,
   analyzeChain,
+  evaluateKnown,
   findChainCoords,
   gravityAndRefill,
   newBoard,
+  formatComboMult,
   scoreKnown,
 } from "./logic";
 import { playCombo, playCorrect, playDrop, playFail, playSuccess, type Pan } from "./sound";
@@ -17,7 +19,15 @@ import { playCombo, playCorrect, playDrop, playFail, playSuccess, type Pan } fro
 export type Readout =
   | { kind: "idle" }
   | { kind: "building"; text: string; valid: boolean }
-  | { kind: "ready"; text: string; points: number }
+  | {
+      kind: "ready";
+      text: string;
+      points: number;
+      fullSum: number;
+      lm: number;
+      combo: number;
+      comboMult: number;
+    }
   | { kind: "invalid"; text: string; reason?: string }
   | { kind: "unknown"; text: string }
   | { kind: "flash"; ok: boolean; text: string };
@@ -34,6 +44,8 @@ export class Engine {
   chain: Pos[] = [];
   dragging = false;
   score = 0;
+  combo = 0;
+  bestCombo = 0;
   bestChain = 0;
   bestPts = 0;
   chainLengthCounts: Record<number, number> = {};
@@ -149,12 +161,11 @@ export class Engine {
     const vals = this.chain.map((p) => this.grid[p.r][p.c] as Cell);
     const info = analyzeChain(vals);
     if (info.type === "known") {
-      const res = scoreKnown(vals);
-      if (res) {
-        this.succeed(res);
+      if (evaluateKnown(vals)) {
+        this.succeedWithVals(vals);
         return;
       }
-      this.fail("比不相等，−2 分");
+      this.fail("比不相等", true);
       return;
     }
     if (info.type === "unknown") {
@@ -162,6 +173,21 @@ export class Engine {
       return;
     }
     this.fail(info.reason || "无效链条");
+  }
+
+  private succeedWithVals(vals: Cell[], note = "") {
+    this.combo += 1;
+    const res = scoreKnown(vals, this.combo);
+    if (!res) {
+      this.combo -= 1;
+      return;
+    }
+    this.succeed(res, note);
+  }
+
+  private formatFloatScore(points: number, res: ScoreResult): string {
+    const cm = formatComboMult(res.comboMult);
+    return `+${points}　全加${res.fullSum}×长度${res.lm}　⚡连击${res.combo} ×${cm}`;
   }
 
   private succeed(res: ScoreResult, note = "") {
@@ -172,6 +198,7 @@ export class Engine {
       this.deepPenalty = false;
     }
     this.score += points;
+    this.bestCombo = Math.max(this.bestCombo, res.combo);
     this.bestChain = Math.max(this.bestChain, this.chain.length);
     this.bestPts = Math.max(this.bestPts, points);
     this.chainLengthCounts[this.chain.length] =
@@ -180,13 +207,12 @@ export class Engine {
     this.shakeLevel = res.ratios >= 5 ? 3 : res.ratios >= 3 ? 2 : 1;
     this.shakeToken++;
     const toClear = [...this.chain];
-    const clearedLen = this.chain.length;
     this.chain = [];
     this.deepCells = [];
     this.readout = {
       kind: "flash",
       ok: true,
-      text: `+${points} 分 (${res.numScore}×${res.lm})${note}`,
+      text: `${this.formatFloatScore(points, res)}${note}`,
     };
     playSuccess(res.ratios, this.pan);
     if (res.ratios >= 3) {
@@ -194,8 +220,16 @@ export class Engine {
       this.comboToken++;
       this.setTimer(() => playCombo(this.pan), 90);
     }
-    this.floatText = `+${points}`;
+    this.floatText = this.formatFloatScore(points, res);
     this.floatToken++;
+    this.setTimer(() => {
+      this.comboText = null;
+      this.emit();
+    }, 1350);
+    this.setTimer(() => {
+      this.floatText = null;
+      this.emit();
+    }, 1150);
     this.emit();
     this.setTimer(() => {
       toClear.forEach((p) => {
@@ -211,12 +245,22 @@ export class Engine {
       if (!this.dragging) this.updateReadout();
       this.emit();
     }, 1250);
-    void clearedLen;
   }
 
-  private fail(msg: string) {
+  private fail(msg: string, halveCombo = false) {
+    this.comboText = null;
+    if (halveCombo && this.chain.length >= 2 && this.combo > 0) {
+      this.combo = Math.floor(this.combo / 2);
+      this.floatText = `⚡连击减半 → ${this.combo}`;
+      this.floatToken++;
+      this.setTimer(() => {
+        this.floatText = null;
+        this.emit();
+      }, 1150);
+    } else {
+      this.floatText = null;
+    }
     if (this.chain.length >= 2) {
-      this.score = Math.max(0, this.score - 2);
       this.badCells = [...this.chain];
       this.shakeLevel = 1;
       this.shakeToken++;
@@ -250,22 +294,21 @@ export class Engine {
       playCorrect(this.pan);
       const solved = [...vals];
       solved[info.idx] = info.required;
-      const res = scoreKnown(solved);
-      if (res) {
-        this.succeed(res, "（解出未知数）");
+      if (evaluateKnown(solved)) {
+        this.succeedWithVals(solved, "（解出未知数）");
       } else {
         this.chain = [];
         this.emit();
       }
     } else {
-      this.fail("未知数选错了，−2 分");
+      this.fail("未知数选错了", true);
     }
   }
 
   closeModalAsFail() {
     if (!this.modal) return;
     this.modal = null;
-    this.fail("未作答，−2 分");
+    this.fail("未作答", true);
   }
 
   useDeepHint(): boolean {
@@ -303,9 +346,17 @@ export class Engine {
     }
     const info = analyzeChain(vals);
     if (info.type === "known") {
-      const res = scoreKnown(vals);
+      const res = scoreKnown(vals, this.combo + 1);
       this.readout = res
-        ? { kind: "ready", text: res.text, points: res.points }
+        ? {
+            kind: "ready",
+            text: res.text,
+            points: res.points,
+            fullSum: res.fullSum,
+            lm: res.lm,
+            combo: res.combo,
+            comboMult: res.comboMult,
+          }
         : { kind: "invalid", text: disp };
     } else if (info.type === "unknown") {
       this.readout = { kind: "unknown", text: disp };
@@ -322,6 +373,8 @@ export class Engine {
     this.chain = [];
     this.dragging = false;
     this.score = 0;
+    this.combo = 0;
+    this.bestCombo = 0;
     this.bestChain = 0;
     this.bestPts = 0;
     this.chainLengthCounts = {};

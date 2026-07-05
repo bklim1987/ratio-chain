@@ -1,5 +1,5 @@
 import { useEffect, useRef } from "react";
-import { COLS, ROWS, WILD, type Cell, type Pos } from "@/game/logic";
+import { COLS, ROWS, WILD, comboMult, formatComboMult, type Cell, type Pos } from "@/game/logic";
 import type { Engine } from "@/game/engine";
 import type { Mode } from "@/game/types";
 import { SolveModal } from "@/components/SolveModal";
@@ -7,6 +7,10 @@ import { SolveModal } from "@/components/SolveModal";
 function cellKey(p: Pos) {
   return `${p.r}-${p.c}`;
 }
+
+// 触发半径：指针必须落在格心 0.42×格宽 内才算选中，避免斜向拖动误触相邻格。
+// 太容易误触就调小（如 0.35），太难选中就调大。
+const HIT_RADIUS_RATIO = 0.42;
 
 function useBoardPointerHandlers(
   engine: Engine,
@@ -28,6 +32,11 @@ function useBoardPointerHandlers(
       const r = Number(cellEl.dataset.r);
       const c = Number(cellEl.dataset.c);
       if (Number.isNaN(r) || Number.isNaN(c)) return null;
+      const rect = cellEl.getBoundingClientRect();
+      const cx = rect.left + rect.width / 2;
+      const cy = rect.top + rect.height / 2;
+      const dist = Math.hypot(x - cx, y - cy);
+      if (dist > HIT_RADIUS_RATIO * rect.width) return null;
       return { r, c };
     }
 
@@ -94,6 +103,7 @@ export function PlayerBoard({
   mode?: Mode;
 }) {
   const boardRef = useRef<HTMLDivElement | null>(null);
+  const gridRef = useRef<HTMLDivElement | null>(null);
   useBoardPointerHandlers(engine, boardRef);
 
   const chainSet = new Set(engine.chain.map(cellKey));
@@ -110,8 +120,17 @@ export function PlayerBoard({
     <div className={`player-panel player-panel-${accent}`}>
       <div className="player-header">
         <span className={`player-badge player-badge-${accent}`}>{label}</span>
-        <span className="player-score">{engine.score}</span>
+        <div className="player-header-stats">
+          <span className={`player-combo${engine.combo > 0 ? " player-combo-active" : ""}`}>
+            ⚡连击 {engine.combo}
+            {engine.combo > 0 && (
+              <span className="player-combo-mult">×{formatComboMult(comboMult(engine.combo))}</span>
+            )}
+          </span>
+          <span className="player-score">{engine.score}</span>
+        </div>
       </div>
+      <ReadoutBar engine={engine} />
       <div ref={boardRef} className="board-shake-outer">
         <div
           key={`shake-${engine.shakeToken}`}
@@ -119,7 +138,16 @@ export function PlayerBoard({
             engine.shakeToken > 0 ? `board-shake-wrap shake-lv${engine.shakeLevel}` : "board-shake-wrap"
           }
         >
-          <div className="board-grid" data-mirror={mirror}>
+          {engine.floatText && (
+            <div
+              key={`float-${engine.floatToken}`}
+              className={`float-score${engine.floatText.startsWith("⚡") ? " float-score-streak" : ""}`}
+            >
+              {engine.floatText}
+            </div>
+          )}
+          <div className="board-grid" data-mirror={mirror} ref={gridRef}>
+            <ChainLine engine={engine} gridRef={gridRef} accent={accent} />
             {rows.map((r) =>
               cols.map((c) => {
                 const v = engine.grid[r][c];
@@ -149,11 +177,6 @@ export function PlayerBoard({
               }),
             )}
           </div>
-          {engine.floatText && (
-            <div key={`float-${engine.floatToken}`} className="float-score">
-              {engine.floatText}
-            </div>
-          )}
           {engine.comboText && (
             <div key={`combo-${engine.comboToken}`} className="combo-banner">
               {engine.comboText}
@@ -161,7 +184,6 @@ export function PlayerBoard({
           )}
         </div>
       </div>
-      <ReadoutBar engine={engine} />
       {engine.modal && (
         <SolveModal
           vals={engine.modal.vals}
@@ -175,6 +197,48 @@ export function PlayerBoard({
   );
 }
 
+function ChainLine({
+  engine,
+  gridRef,
+  accent,
+}: {
+  engine: Engine;
+  gridRef: React.RefObject<HTMLDivElement | null>;
+  accent: "p1" | "p2";
+}) {
+  const gridEl = gridRef.current;
+  if (!gridEl || engine.chain.length < 2) return null;
+  const gr = gridEl.getBoundingClientRect();
+  if (gr.width === 0) return null;
+  const pts: [number, number][] = [];
+  for (const p of engine.chain) {
+    const el = gridEl.querySelector(
+      `[data-r="${p.r}"][data-c="${p.c}"]`,
+    ) as HTMLElement | null;
+    if (!el) return null;
+    const r = el.getBoundingClientRect();
+    pts.push([
+      r.left + r.width / 2 - gr.left,
+      r.top + r.height / 2 - gr.top,
+    ]);
+  }
+  const points = pts.map(([x, y]) => `${x},${y}`).join(" ");
+  return (
+    <svg
+      className={`chain-line chain-line-${accent}`}
+      width={gr.width}
+      height={gr.height}
+      viewBox={`0 0 ${gr.width} ${gr.height}`}
+      aria-hidden="true"
+    >
+      <polyline className="chain-line-stroke" points={points} />
+      {pts.map(([x, y], i) => (
+        <circle key={i} cx={x} cy={y} r={3} className="chain-line-node" />
+      ))}
+    </svg>
+  );
+}
+
 function ReadoutBar({ engine }: { engine: Engine }) {
   const r = engine.readout;
   let content: React.ReactNode = "拖动相邻数字，组成相等的比";
@@ -183,7 +247,8 @@ function ReadoutBar({ engine }: { engine: Engine }) {
     content = r.text;
     cls = "readout-building";
   } else if (r.kind === "ready") {
-    content = `${r.text}  → +${r.points}`;
+    const cm = formatComboMult(r.comboMult);
+    content = `${r.text}  → +${r.points}（全加${r.fullSum}×长度${r.lm}　⚡${r.combo}×${cm}）`;
     cls = "readout-ready";
   } else if (r.kind === "invalid") {
     content = r.reason ? `${r.text}（${r.reason}）` : r.text;

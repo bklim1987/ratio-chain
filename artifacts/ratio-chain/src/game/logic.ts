@@ -6,8 +6,8 @@ export interface Pos {
   c: number;
 }
 
-export const COLS = 8;
-export const ROWS = 7;
+export const COLS = 6;
+export const ROWS = 6;
 
 export const POOL_WEIGHTS_FULL: Record<number, number> = {
   1: 5,
@@ -30,20 +30,15 @@ export const POOL_WEIGHTS_FULL: Record<number, number> = {
 export interface RoundConfig {
   weights: Record<number, number>;
   unknownProb: number;
+  durationSeconds: number;
 }
 
-export const ROUND_CONFIGS: RoundConfig[] = [
-  { weights: { 1: 6, 2: 8, 3: 8, 4: 9, 5: 7, 6: 10 }, unknownProb: 0.04 },
-  {
-    weights: { 1: 4, 2: 6, 3: 6, 4: 8, 5: 6, 6: 10, 8: 8, 9: 8, 10: 7, 12: 9 },
-    unknownProb: 0.06,
-  },
-  { weights: POOL_WEIGHTS_FULL, unknownProb: 0.08 },
-];
-
-export const SOLO_CONFIG: RoundConfig = {
+// 单一回合配置：整局同一个混合池（小到大数字并存），难度由玩家自选挖哪种链体现。
+// 双人对战每一侧、练习模式（单人）都从这一份配置读取，杜绝两处漂移。
+export const ROUND_CONFIG: RoundConfig = {
   weights: POOL_WEIGHTS_FULL,
-  unknownProb: 0.06,
+  unknownProb: 0.1,
+  durationSeconds: 120,
 };
 
 export function buildWeightedPool(weights: Record<number, number>): number[] {
@@ -67,11 +62,16 @@ export function shuffle<T>(arr: T[]): T[] {
   return a;
 }
 
-const N4: [number, number][] = [
+// 8 邻域（含斜向），用于找链（提示/保底）的深度优先搜索。
+const N8: [number, number][] = [
+  [-1, -1],
   [0, -1],
+  [1, -1],
   [-1, 0],
   [1, 0],
+  [-1, 1],
   [0, 1],
+  [1, 1],
 ];
 
 export function randVal(pool: number[], unknownProb: number): Cell {
@@ -100,29 +100,46 @@ export function lenMult(ratios: number): number {
   return LEN_MULT[ratios] ?? 7 + (ratios - 6) * 2;
 }
 
+export const COMBO_G = 0.12;
+export const COMBO_CAP = 5;
+export const SCORE_SCALE = 2;
+
+export function comboMult(combo: number): number {
+  return Math.min(COMBO_CAP, 1 + combo * COMBO_G);
+}
+
+export function formatComboMult(cm: number): string {
+  return cm % 1 === 0 ? String(cm) : cm.toFixed(2);
+}
+
 export interface ScoreResult {
   points: number;
-  numScore: number;
+  fullSum: number;
   ratios: number;
   lm: number;
+  combo: number;
+  comboMult: number;
   text: string;
 }
 
-export function scoreKnown(vals: Cell[]): ScoreResult | null {
+export function scoreKnown(vals: Cell[], combo = 0): ScoreResult | null {
   if (!evaluateKnown(vals)) return null;
   const pairs: [number, number][] = [];
   for (let i = 0; i < vals.length; i += 2) {
     pairs.push([vals[i] as number, vals[i + 1] as number]);
   }
-  let numScore = 0;
-  for (const [a, b] of pairs) numScore += Math.max(a, b);
+  let fullSum = 0;
+  for (const v of vals) fullSum += v as number;
   const ratios = pairs.length;
   const lm = lenMult(ratios);
+  const cm = comboMult(combo);
   return {
-    points: Math.max(1, Math.round(numScore * lm)),
-    numScore,
+    points: Math.max(1, Math.round(fullSum * lm * cm * SCORE_SCALE)),
+    fullSum,
     ratios,
     lm,
+    combo,
+    comboMult: cm,
     text: pairs.map(([a, b]) => `${a}:${b}`).join(" = "),
   };
 }
@@ -253,7 +270,7 @@ export function findChainCoords(grid: Grid, length: number): Pos[] | null {
       return res;
     }
     if (path.length < length) {
-      for (const [dc, dr] of shuffle(N4)) {
+      for (const [dc, dr] of shuffle(N8)) {
         const nr = r + dr;
         const nc = c + dc;
         if (!inBounds(nr, nc) || used[nr][nc] || !ok(nr, nc)) continue;
@@ -322,5 +339,6 @@ export function gravityAndRefill(
 }
 
 export function adjacent(a: Pos, b: Pos): boolean {
-  return Math.abs(a.r - b.r) + Math.abs(a.c - b.c) === 1;
+  // 切比雪夫距离：含斜向的 8 方向相邻（排除自身）。
+  return Math.max(Math.abs(a.r - b.r), Math.abs(a.c - b.c)) === 1;
 }

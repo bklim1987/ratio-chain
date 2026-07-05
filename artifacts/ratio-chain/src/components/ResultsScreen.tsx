@@ -1,66 +1,267 @@
+import { useState } from "react";
 import type { Engine } from "@/game/engine";
-import type { Mode, RoundScore } from "@/game/types";
+import type { Mode } from "@/game/types";
+import { saveScore } from "@/game/leaderboard";
 
-function StatBlock({ label, engine }: { label: string; engine: Engine }) {
-  const acc =
+interface DistEntry {
+  segs: number;
+  count: number;
+}
+
+interface PlayerStats {
+  score: number;
+  clears: number;
+  bestPts: number;
+  bestCombo: number;
+  bestChainCells: number;
+  bestChainSegs: number;
+  unkAcc: number | null;
+  unkText: string;
+  dist: DistEntry[];
+}
+
+function statsOf(engine: Engine): PlayerStats {
+  const clears = Object.values(engine.chainLengthCounts).reduce(
+    (sum, n) => sum + n,
+    0,
+  );
+  const dist = Object.entries(engine.chainLengthCounts)
+    .map(([len, count]) => ({ segs: Number(len) / 2, count }))
+    .sort((a, b) => a.segs - b.segs);
+  const unkAcc =
     engine.unknownAttempts > 0
       ? Math.round((engine.unknownCorrect / engine.unknownAttempts) * 100)
-      : 0;
+      : null;
+  const unkText =
+    unkAcc === null
+      ? "—"
+      : `${unkAcc}% (${engine.unknownCorrect}/${engine.unknownAttempts})`;
+  return {
+    score: engine.score,
+    clears,
+    bestPts: engine.bestPts || 0,
+    bestCombo: engine.bestCombo || 0,
+    bestChainCells: engine.bestChain || 0,
+    bestChainSegs: engine.bestChain ? engine.bestChain / 2 : 0,
+    unkAcc,
+    unkText,
+    dist,
+  };
+}
+
+function StatBlock({ label, engine }: { label: string; engine: Engine }) {
+  const s = statsOf(engine);
   return (
     <div className="stat-block">
       <div className="stat-block-title">{label}</div>
       <div className="stat-row">
         <span>最终得分</span>
-        <strong>{engine.score}</strong>
+        <strong>{s.score}</strong>
       </div>
       <div className="stat-row">
-        <span>最长链</span>
-        <strong>{engine.bestChain || 0}</strong>
+        <span>消除链数</span>
+        <strong>{s.clears}</strong>
       </div>
       <div className="stat-row">
         <span>单次最高得分</span>
-        <strong>{engine.bestPts || 0}</strong>
+        <strong>{s.bestPts}</strong>
+      </div>
+      <div className="stat-row">
+        <span>最高连击</span>
+        <strong>{s.bestCombo}</strong>
+      </div>
+      <div className="stat-row">
+        <span>最长链</span>
+        <strong>
+          {s.bestChainSegs ? `${s.bestChainSegs} 段 · ${s.bestChainCells} 格` : "—"}
+        </strong>
       </div>
       <div className="stat-row">
         <span>未知数正确率</span>
-        <strong>
-          {engine.unknownAttempts > 0
-            ? `${acc}% (${engine.unknownCorrect}/${engine.unknownAttempts})`
-            : "—"}
-        </strong>
+        <strong>{s.unkText}</strong>
+      </div>
+      <div className="stat-dist">
+        <span className="stat-dist-label">链长分布</span>
+        {s.dist.length > 0 ? (
+          <div className="stat-dist-tags">
+            {s.dist.map(({ segs, count }) => (
+              <span key={segs} className="stat-dist-tag">
+                {segs}段<b>×{count}</b>
+              </span>
+            ))}
+          </div>
+        ) : (
+          <span className="stat-dist-empty">—</span>
+        )}
       </div>
     </div>
   );
 }
 
-export function RoundEndScreen({
-  roundIndex,
-  roundsWon,
-  roundScores,
-  onContinue,
-}: {
-  roundIndex: number;
-  roundsWon: [number, number];
-  roundScores: RoundScore[];
-  onContinue: () => void;
-}) {
-  const last = roundScores[roundScores.length - 1];
-  const winner =
-    last.p1 > last.p2 ? "玩家一" : last.p2 > last.p1 ? "玩家二" : "平局";
+function DistCell({ dist }: { dist: DistEntry[] }) {
+  if (dist.length === 0) return <span className="cmp-dist-empty">—</span>;
   return (
-    <div className="overlay-screen">
-      <div className="overlay-card">
-        <h2 className="overlay-title">第 {roundIndex + 1} 局结束</h2>
-        <div className="round-result-score">
-          {last.p1} : {last.p2}
+    <div className="cmp-dist-tags">
+      {dist.map(({ segs, count }) => (
+        <span key={segs} className="stat-dist-tag">
+          {segs}段<b>×{count}</b>
+        </span>
+      ))}
+    </div>
+  );
+}
+
+function ComparisonTable({
+  s1,
+  s2,
+}: {
+  s1: PlayerStats;
+  s2: PlayerStats;
+}) {
+  const rows: {
+    label: string;
+    v1: React.ReactNode;
+    v2: React.ReactNode;
+    n1: number | null;
+    n2: number | null;
+  }[] = [
+    { label: "最终得分", v1: s1.score, v2: s2.score, n1: s1.score, n2: s2.score },
+    { label: "消除链数", v1: s1.clears, v2: s2.clears, n1: s1.clears, n2: s2.clears },
+    {
+      label: "单次最高得分",
+      v1: s1.bestPts,
+      v2: s2.bestPts,
+      n1: s1.bestPts,
+      n2: s2.bestPts,
+    },
+    {
+      label: "最高连击",
+      v1: s1.bestCombo,
+      v2: s2.bestCombo,
+      n1: s1.bestCombo,
+      n2: s2.bestCombo,
+    },
+    {
+      label: "最长链",
+      v1: s1.bestChainSegs ? `${s1.bestChainSegs} 段` : "—",
+      v2: s2.bestChainSegs ? `${s2.bestChainSegs} 段` : "—",
+      n1: s1.bestChainCells,
+      n2: s2.bestChainCells,
+    },
+    {
+      label: "未知数正确率",
+      v1: s1.unkText,
+      v2: s2.unkText,
+      n1: s1.unkAcc,
+      n2: s2.unkAcc,
+    },
+  ];
+
+  return (
+    <div className="cmp-table">
+      <div className="cmp-head cmp-head-p1">玩家一</div>
+      <div className="cmp-head cmp-head-mid">对比</div>
+      <div className="cmp-head cmp-head-p2">玩家二</div>
+      {rows.map((row) => {
+        const win1 = row.n1 != null && row.n2 != null && row.n1 > row.n2;
+        const win2 = row.n1 != null && row.n2 != null && row.n2 > row.n1;
+        return (
+          <div key={row.label} className="cmp-row-group">
+            <div className={`cmp-val cmp-val-left${win1 ? " cmp-val-win" : ""}`}>
+              {row.v1}
+            </div>
+            <div className="cmp-label">{row.label}</div>
+            <div className={`cmp-val cmp-val-right${win2 ? " cmp-val-win" : ""}`}>
+              {row.v2}
+            </div>
+          </div>
+        );
+      })}
+      <div className="cmp-row-group cmp-row-dist">
+        <div className="cmp-val cmp-val-left">
+          <DistCell dist={s1.dist} />
         </div>
-        <div className="round-result-winner">本局胜者：{winner}</div>
-        <div className="round-result-tally">
-          总比分 {roundsWon[0]} : {roundsWon[1]}
+        <div className="cmp-label">链长分布</div>
+        <div className="cmp-val cmp-val-right">
+          <DistCell dist={s2.dist} />
         </div>
-        <button className="menu-start-btn" onClick={onContinue}>
-          继续
+      </div>
+    </div>
+  );
+}
+
+function SaveRow({
+  defaultName,
+  score,
+  mode,
+}: {
+  defaultName: string;
+  score: number;
+  mode: Mode;
+}) {
+  const [name, setName] = useState("");
+  const [saved, setSaved] = useState(false);
+
+  function handleSave() {
+    saveScore({ name: name.trim() || defaultName, score, mode });
+    setSaved(true);
+  }
+
+  return (
+    <div className="save-row">
+      <div className="save-row-head">
+        <span className="save-row-label">{defaultName}</span>
+        <span className="save-row-score">{score} 分</span>
+      </div>
+      <div className="save-row-controls">
+        <input
+          className="save-row-input"
+          type="text"
+          value={name}
+          placeholder={defaultName}
+          maxLength={16}
+          disabled={saved}
+          onChange={(e) => setName(e.target.value)}
+        />
+        <button
+          className={`save-row-btn${saved ? " save-row-btn-done" : ""}`}
+          onClick={handleSave}
+          disabled={saved}
+        >
+          {saved ? "✓ 已保存" : "保存"}
         </button>
+      </div>
+    </div>
+  );
+}
+
+function SaveScoreModal({
+  mode,
+  engine1,
+  engine2,
+  onClose,
+}: {
+  mode: Mode;
+  engine1: Engine;
+  engine2: Engine | null;
+  onClose: () => void;
+}) {
+  return (
+    <div className="overlay-screen" onClick={onClose}>
+      <div className="overlay-card" onClick={(e) => e.stopPropagation()}>
+        <h2 className="overlay-title">保存分数</h2>
+        <p className="leaderboard-note">输入名字后保存，可只存一方或双方，成绩仅保存在本机</p>
+        <div className="save-rows">
+          <SaveRow defaultName="玩家一" score={engine1.score} mode={mode} />
+          {mode === "duo" && engine2 && (
+            <SaveRow defaultName="玩家二" score={engine2.score} mode={mode} />
+          )}
+        </div>
+        <div className="overlay-actions">
+          <button className="menu-start-btn" onClick={onClose}>
+            完成
+          </button>
+        </div>
       </div>
     </div>
   );
@@ -68,19 +269,19 @@ export function RoundEndScreen({
 
 export function MatchEndScreen({
   mode,
-  roundsWon,
   engine1,
   engine2,
   onReplay,
   onMenu,
 }: {
   mode: Mode;
-  roundsWon: [number, number];
   engine1: Engine;
   engine2: Engine | null;
   onReplay: () => void;
   onMenu: () => void;
 }) {
+  const [showSave, setShowSave] = useState(false);
+
   if (mode === "solo") {
     return (
       <div className="overlay-screen">
@@ -92,43 +293,61 @@ export function MatchEndScreen({
             <button className="menu-start-btn" onClick={onReplay}>
               再来一局
             </button>
+            <button className="menu-secondary-btn" onClick={() => setShowSave(true)}>
+              保存分数
+            </button>
             <button className="menu-secondary-btn" onClick={onMenu}>
               返回菜单
             </button>
           </div>
         </div>
+        {showSave && (
+          <SaveScoreModal
+            mode={mode}
+            engine1={engine1}
+            engine2={null}
+            onClose={() => setShowSave(false)}
+          />
+        )}
       </div>
     );
   }
 
-  const winner =
-    roundsWon[0] > roundsWon[1]
-      ? "玩家一"
-      : roundsWon[1] > roundsWon[0]
-        ? "玩家二"
-        : "平局";
+  const s1 = engine1.score;
+  const s2 = engine2?.score ?? 0;
+  const winner = s1 > s2 ? "玩家一" : s2 > s1 ? "玩家二" : "平局";
 
   return (
     <div className="overlay-screen">
       <div className="overlay-card overlay-card-wide">
         <h2 className="overlay-title">对战结束</h2>
         <div className="round-result-score">
-          {roundsWon[0]} : {roundsWon[1]}
+          {s1} : {s2}
         </div>
         <div className="round-result-winner">获胜方：{winner}</div>
-        <div className="results-stats-row">
-          <StatBlock label="玩家一" engine={engine1} />
-          {engine2 && <StatBlock label="玩家二" engine={engine2} />}
-        </div>
+        {engine2 && (
+          <ComparisonTable s1={statsOf(engine1)} s2={statsOf(engine2)} />
+        )}
         <div className="overlay-actions">
           <button className="menu-start-btn" onClick={onReplay}>
             再来一局
+          </button>
+          <button className="menu-secondary-btn" onClick={() => setShowSave(true)}>
+            保存分数
           </button>
           <button className="menu-secondary-btn" onClick={onMenu}>
             返回菜单
           </button>
         </div>
       </div>
+      {showSave && (
+        <SaveScoreModal
+          mode={mode}
+          engine1={engine1}
+          engine2={engine2}
+          onClose={() => setShowSave(false)}
+        />
+      )}
     </div>
   );
 }

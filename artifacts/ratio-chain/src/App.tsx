@@ -165,10 +165,15 @@ function RatioChainGame() {
     if (phase !== "playing") return;
     totalSecondsRef.current = ROUND_SECONDS;
     startTimeRef.current = performance.now();
+    let prevLeft = totalSecondsRef.current;
 
     function tick() {
       const elapsed = (performance.now() - startTimeRef.current) / 1000;
       const left = Math.max(0, totalSecondsRef.current - Math.floor(elapsed));
+      if (left !== prevLeft) {
+        if (left === 3 || left === 2 || left === 1) playCountdownBeep();
+        prevLeft = left;
+      }
       setTimeLeft(left);
       if (left <= 0) {
         endRoundRef.current();

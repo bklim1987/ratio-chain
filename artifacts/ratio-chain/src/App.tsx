@@ -20,6 +20,14 @@ const queryClient = new QueryClient();
 
 const ROUND_SECONDS = ROUND_CONFIG.durationSeconds;
 
+// ===== Tournament Hub 集成（仅当 URL 带 mode=tournament 时生效）=====
+// 独立运行（无 mode 参数）时以下常量不影响任何行为。
+const tournamentParams = new URLSearchParams(window.location.search);
+const IS_TOURNAMENT = tournamentParams.get("mode") === "tournament";
+const TOURNAMENT_MATCH_ID = tournamentParams.get("matchId") || "";
+const TOURNAMENT_NAME_A = tournamentParams.get("teamA") || "玩家 A";
+const TOURNAMENT_NAME_B = tournamentParams.get("teamB") || "玩家 B";
+
 function RatioChainGame() {
   const [phase, setPhase] = useState<Phase>("menu");
   const [mode, setMode] = useState<Mode>("duo");
@@ -37,9 +45,21 @@ function RatioChainGame() {
 
   const rerender = useCallback(() => forceTick((t) => t + 1), []);
 
+  const nameA = IS_TOURNAMENT ? TOURNAMENT_NAME_A : "玩家一";
+  const nameB = IS_TOURNAMENT ? TOURNAMENT_NAME_B : "玩家二";
+
   useEffect(() => {
     setMuted(muted);
   }, [muted]);
+
+  // 锦标赛模式：跳过首页菜单，直接进入 duo 单场决胜。
+  const tournamentStartedRef = useRef(false);
+  useEffect(() => {
+    if (!IS_TOURNAMENT || tournamentStartedRef.current) return;
+    tournamentStartedRef.current = true;
+    beginMatch("duo");
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   function startEngines(m: Mode) {
     const cfg = ROUND_CONFIG;
@@ -97,12 +117,46 @@ function RatioChainGame() {
     return () => clearTimeout(t);
   }, [phase, countdownVal, mode]);
 
+  // 单场结束时把结果回传给 Tournament Hub（仅 tournament 模式发一次）。
+  // winner：先比总分，同分比最长链（段数），仍同分为 draw。
+  function reportTournamentResult() {
+    const e1 = engine1Ref.current;
+    const e2 = engine2Ref.current;
+    if (!IS_TOURNAMENT || !e1 || !e2) return;
+    const scoreA = e1.score;
+    const scoreB = e2.score;
+    const longestChainA = e1.bestChain ? e1.bestChain / 2 : 0;
+    const longestChainB = e2.bestChain ? e2.bestChain / 2 : 0;
+    const accuracyA =
+      e1.unknownAttempts > 0 ? e1.unknownCorrect / e1.unknownAttempts : null;
+    const accuracyB =
+      e2.unknownAttempts > 0 ? e2.unknownCorrect / e2.unknownAttempts : null;
+    let winner: "A" | "B" | "draw";
+    if (scoreA > scoreB) winner = "A";
+    else if (scoreB > scoreA) winner = "B";
+    else if (longestChainA > longestChainB) winner = "A";
+    else if (longestChainB > longestChainA) winner = "B";
+    else winner = "draw";
+    window.parent.postMessage(
+      {
+        type: "tournamentMatchEnd",
+        matchId: TOURNAMENT_MATCH_ID,
+        scoreA,
+        scoreB,
+        winner,
+        extra: { longestChainA, longestChainB, accuracyA, accuracyB },
+      },
+      "*",
+    );
+  }
+
   const endRoundRef = useRef<() => void>(() => {});
   endRoundRef.current = function endRound() {
     if (rafRef.current) cancelAnimationFrame(rafRef.current);
     if (engine1Ref.current) engine1Ref.current.running = false;
     if (engine2Ref.current) engine2Ref.current.running = false;
     setPhase("matchEnd");
+    reportTournamentResult();
     rerender();
   };
 
@@ -143,7 +197,7 @@ function RatioChainGame() {
     <div
       className={`game-root ${phase === "playing" && mode === "duo" ? "game-root-bottom" : ""}`}
     >
-      {phase === "menu" && (
+      {phase === "menu" && !IS_TOURNAMENT && (
         <StartMenu
           onStart={beginMatch}
           muted={muted}
@@ -161,7 +215,7 @@ function RatioChainGame() {
         <div
           className={`game-layout ${mode === "duo" ? "game-layout-duo" : "game-layout-solo"}`}
         >
-          <PlayerBoard engine={e1} accent="p1" label="玩家一" mode={mode} />
+          <PlayerBoard engine={e1} accent="p1" label={nameA} mode={mode} />
 
           {mode === "duo" && (
             <div className="center-hud">
@@ -191,7 +245,7 @@ function RatioChainGame() {
           )}
 
           {mode === "duo" && e2 && (
-            <PlayerBoard engine={e2} mirror accent="p2" label="玩家二" mode={mode} />
+            <PlayerBoard engine={e2} mirror accent="p2" label={nameB} mode={mode} />
           )}
         </div>
         </>
@@ -204,6 +258,9 @@ function RatioChainGame() {
           engine2={mode === "duo" ? e2 : null}
           onReplay={replay}
           onMenu={backToMenu}
+          tournament={IS_TOURNAMENT}
+          nameA={nameA}
+          nameB={nameB}
         />
       )}
     </div>

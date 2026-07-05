@@ -114,9 +114,13 @@ function DistCell({ dist }: { dist: DistEntry[] }) {
 function ComparisonTable({
   s1,
   s2,
+  nameA,
+  nameB,
 }: {
   s1: PlayerStats;
   s2: PlayerStats;
+  nameA: string;
+  nameB: string;
 }) {
   const rows: {
     label: string;
@@ -159,9 +163,9 @@ function ComparisonTable({
 
   return (
     <div className="cmp-table">
-      <div className="cmp-head cmp-head-p1">玩家一</div>
+      <div className="cmp-head cmp-head-p1">{nameA}</div>
       <div className="cmp-head cmp-head-mid">对比</div>
-      <div className="cmp-head cmp-head-p2">玩家二</div>
+      <div className="cmp-head cmp-head-p2">{nameB}</div>
       {rows.map((row) => {
         const win1 = row.n1 != null && row.n2 != null && row.n1 > row.n2;
         const win2 = row.n1 != null && row.n2 != null && row.n2 > row.n1;
@@ -239,11 +243,15 @@ function SaveScoreModal({
   mode,
   engine1,
   engine2,
+  nameA,
+  nameB,
   onClose,
 }: {
   mode: Mode;
   engine1: Engine;
   engine2: Engine | null;
+  nameA: string;
+  nameB: string;
   onClose: () => void;
 }) {
   return (
@@ -252,9 +260,9 @@ function SaveScoreModal({
         <h2 className="overlay-title">保存分数</h2>
         <p className="leaderboard-note">输入名字后保存，可只存一方或双方，成绩仅保存在本机</p>
         <div className="save-rows">
-          <SaveRow defaultName="玩家一" score={engine1.score} mode={mode} />
+          <SaveRow defaultName={nameA} score={engine1.score} mode={mode} />
           {mode === "duo" && engine2 && (
-            <SaveRow defaultName="玩家二" score={engine2.score} mode={mode} />
+            <SaveRow defaultName={nameB} score={engine2.score} mode={mode} />
           )}
         </div>
         <div className="overlay-actions">
@@ -273,12 +281,18 @@ export function MatchEndScreen({
   engine2,
   onReplay,
   onMenu,
+  tournament = false,
+  nameA = "玩家一",
+  nameB = "玩家二",
 }: {
   mode: Mode;
   engine1: Engine;
   engine2: Engine | null;
   onReplay: () => void;
   onMenu: () => void;
+  tournament?: boolean;
+  nameA?: string;
+  nameB?: string;
 }) {
   const [showSave, setShowSave] = useState(false);
 
@@ -289,6 +303,63 @@ export function MatchEndScreen({
           <h2 className="overlay-title">挑战结束</h2>
           <div className="round-result-score">{engine1.score} 分</div>
           <StatBlock label="本局统计" engine={engine1} />
+          {!tournament && (
+            <div className="overlay-actions">
+              <button className="menu-start-btn" onClick={onReplay}>
+                再来一局
+              </button>
+              <button className="menu-secondary-btn" onClick={() => setShowSave(true)}>
+                保存分数
+              </button>
+              <button className="menu-secondary-btn" onClick={onMenu}>
+                返回菜单
+              </button>
+            </div>
+          )}
+        </div>
+        {!tournament && showSave && (
+          <SaveScoreModal
+            mode={mode}
+            engine1={engine1}
+            engine2={null}
+            nameA={nameA}
+            nameB={nameB}
+            onClose={() => setShowSave(false)}
+          />
+        )}
+      </div>
+    );
+  }
+
+  const s1 = engine1.score;
+  const s2 = engine2?.score ?? 0;
+  // 锦标赛下同分比最长链（段数），仍同分才平局；独立运行仍按分数判定。
+  const c1 = engine1.bestChain ? engine1.bestChain / 2 : 0;
+  const c2 = engine2?.bestChain ? engine2.bestChain / 2 : 0;
+  let winner: string;
+  if (s1 > s2) winner = nameA;
+  else if (s2 > s1) winner = nameB;
+  else if (tournament && c1 > c2) winner = nameA;
+  else if (tournament && c2 > c1) winner = nameB;
+  else winner = "平局";
+
+  return (
+    <div className="overlay-screen">
+      <div className="overlay-card overlay-card-wide">
+        <h2 className="overlay-title">对战结束</h2>
+        <div className="round-result-score">
+          {s1} : {s2}
+        </div>
+        <div className="round-result-winner">获胜方：{winner}</div>
+        {engine2 && (
+          <ComparisonTable
+            s1={statsOf(engine1)}
+            s2={statsOf(engine2)}
+            nameA={nameA}
+            nameB={nameB}
+          />
+        )}
+        {!tournament && (
           <div className="overlay-actions">
             <button className="menu-start-btn" onClick={onReplay}>
               再来一局
@@ -300,51 +371,15 @@ export function MatchEndScreen({
               返回菜单
             </button>
           </div>
-        </div>
-        {showSave && (
-          <SaveScoreModal
-            mode={mode}
-            engine1={engine1}
-            engine2={null}
-            onClose={() => setShowSave(false)}
-          />
         )}
       </div>
-    );
-  }
-
-  const s1 = engine1.score;
-  const s2 = engine2?.score ?? 0;
-  const winner = s1 > s2 ? "玩家一" : s2 > s1 ? "玩家二" : "平局";
-
-  return (
-    <div className="overlay-screen">
-      <div className="overlay-card overlay-card-wide">
-        <h2 className="overlay-title">对战结束</h2>
-        <div className="round-result-score">
-          {s1} : {s2}
-        </div>
-        <div className="round-result-winner">获胜方：{winner}</div>
-        {engine2 && (
-          <ComparisonTable s1={statsOf(engine1)} s2={statsOf(engine2)} />
-        )}
-        <div className="overlay-actions">
-          <button className="menu-start-btn" onClick={onReplay}>
-            再来一局
-          </button>
-          <button className="menu-secondary-btn" onClick={() => setShowSave(true)}>
-            保存分数
-          </button>
-          <button className="menu-secondary-btn" onClick={onMenu}>
-            返回菜单
-          </button>
-        </div>
-      </div>
-      {showSave && (
+      {!tournament && showSave && (
         <SaveScoreModal
           mode={mode}
           engine1={engine1}
           engine2={engine2}
+          nameA={nameA}
+          nameB={nameB}
           onClose={() => setShowSave(false)}
         />
       )}

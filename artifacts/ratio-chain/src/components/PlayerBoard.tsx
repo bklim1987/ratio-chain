@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useLayoutEffect, useRef } from "react";
 import { COLS, ROWS, WILD, comboMult, formatComboMult, type Cell, type Pos } from "@/game/logic";
 import type { Engine } from "@/game/engine";
 import type { Mode } from "@/game/types";
@@ -126,6 +126,18 @@ export function PlayerBoard({
     el.classList.add(`pulse-lv${engine.pulseLevel}`);
   }, [engine.pulseToken, engine.pulseLevel]);
 
+  // 按真实格高测量每「一行」的像素步长，供下落动画使用（layout 阶段完成，避免首帧错位）。
+  useLayoutEffect(() => {
+    const gridEl = gridRef.current;
+    if (!gridEl || engine.dropToken === 0) return;
+    const cell = gridEl.querySelector(".cell") as HTMLElement | null;
+    if (!cell) return;
+    const gap =
+      parseFloat(getComputedStyle(gridEl).rowGap || getComputedStyle(gridEl).gap) ||
+      16;
+    gridEl.style.setProperty("--cell-step", `${cell.offsetHeight + gap}px`);
+  }, [engine.dropToken]);
+
   const chainSet = new Set(engine.chain.map(cellKey));
   const popSet = new Set(engine.popCells.map(cellKey));
   const badSet = new Set(engine.badCells.map(cellKey));
@@ -170,6 +182,7 @@ export function PlayerBoard({
               cols.map((c) => {
                 const v = engine.grid[r][c];
                 const key = cellKey({ r, c });
+                const dropRows = engine.dropDist[r]?.[c] ?? 0;
                 const classes = ["cell"];
                 if (v == null) classes.push("cell-empty");
                 if (chainSet.has(key)) classes.push("cell-selected");
@@ -187,9 +200,15 @@ export function PlayerBoard({
                   >
                     {v != null && (
                       <div
-                        key={`gem-${v}`}
-                        className={`gem ${gemColorClass(v)}`}
-                        style={{ animationDelay: `${r * 0.05}s` }}
+                        className={`gem ${gemColorClass(v)}${dropRows > 0 ? " gem-falling" : ""}`}
+                        style={
+                          dropRows > 0
+                            ? ({
+                                "--drop-rows": dropRows,
+                                "--drop-duration": `${0.14 + dropRows * 0.1}s`,
+                              } as React.CSSProperties)
+                            : undefined
+                        }
                       >
                         {v === WILD ? "?" : v}
                       </div>

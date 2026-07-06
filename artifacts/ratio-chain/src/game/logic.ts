@@ -332,26 +332,40 @@ export function gravityAndRefill(
   grid: Grid,
   pool: number[],
   unknownProb: number,
-): Grid {
+): { grid: Grid; drops: number[][] } {
   const next: Grid = grid.map((row) => [...row]);
+  const drops = Array.from({ length: ROWS }, () => Array(COLS).fill(0));
+
   for (let c = 0; c < COLS; c++) {
-    const kept: Cell[] = [];
+    const kept: { v: Cell; oldR: number }[] = [];
     for (let r = 0; r < ROWS; r++) {
-      if (next[r][c] != null) kept.push(next[r][c] as Cell);
+      if (next[r][c] != null) kept.push({ v: next[r][c] as Cell, oldR: r });
     }
     const need = ROWS - kept.length;
-    const col: Cell[] = [];
-    for (let i = 0; i < need; i++) col.push(randVal(pool, unknownProb));
-    for (const v of kept) col.push(v);
-    for (let r = 0; r < ROWS; r++) next[r][c] = col[r];
+    for (let r = 0; r < ROWS; r++) {
+      if (r < need) {
+        next[r][c] = randVal(pool, unknownProb);
+        // 顶部新数字：从棋盘上方逐行落入
+        drops[r][c] = r + 1;
+      } else {
+        const { v, oldR } = kept[r - need];
+        next[r][c] = v;
+        const fall = r - oldR;
+        drops[r][c] = fall > 0 ? fall : 0;
+      }
+    }
   }
+
   let t = 0;
   while (!findAnyValidChain(next) && t++ < 20) {
     for (let r = 0; r < ROWS; r++) {
-      for (let c = 0; c < COLS; c++) next[r][c] = randVal(pool, unknownProb);
+      for (let c = 0; c < COLS; c++) {
+        next[r][c] = randVal(pool, unknownProb);
+        drops[r][c] = 0;
+      }
     }
   }
-  return next;
+  return { grid: next, drops };
 }
 
 export function adjacent(a: Pos, b: Pos): boolean {

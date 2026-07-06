@@ -1,5 +1,7 @@
 import {
   WILD,
+  COLS,
+  ROWS,
   type Cell,
   type Grid,
   type Pos,
@@ -75,6 +77,8 @@ export class Engine {
   floatToken = 0;
   scorePop: string | null = null;
   scorePopToken = 0;
+  dropDist: number[][] = Array.from({ length: ROWS }, () => Array(COLS).fill(0));
+  dropToken = 0;
   running = true;
   paused = false;
   pan: Pan;
@@ -263,11 +267,23 @@ export class Engine {
       toClear.forEach((p) => {
         this.grid[p.r][p.c] = null;
       });
-      this.grid = gravityAndRefill(this.grid, this.pool, this.unknownProb);
+      const { grid, drops } = gravityAndRefill(
+        this.grid,
+        this.pool,
+        this.unknownProb,
+      );
+      this.grid = grid;
+      this.dropDist = drops;
+      this.dropToken++;
+      const maxFall = drops.reduce((m, row) => Math.max(m, ...row), 0);
       playDrop(this.pan);
       this.computeSeed();
       this.popCells = [];
       this.emit();
+      this.setTimer(() => {
+        this.dropDist = Array.from({ length: ROWS }, () => Array(COLS).fill(0));
+        this.emit();
+      }, Math.round(120 + maxFall * 95 + 180));
     }, 230);
     this.setTimer(() => {
       if (!this.dragging) this.updateReadout();
@@ -422,6 +438,8 @@ export class Engine {
     this.comboText = null;
     this.floatText = null;
     this.scorePop = null;
+    this.dropDist = Array.from({ length: ROWS }, () => Array(COLS).fill(0));
+    this.dropToken = 0;
     this.running = true;
     this.paused = false;
     this.computeSeed();

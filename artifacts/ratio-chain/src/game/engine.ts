@@ -51,6 +51,7 @@ export class Engine {
   bestChain = 0;
   bestPts = 0;
   chainLengthCounts: Record<number, number> = {};
+  coefCounts: Record<number, number> = {};
   unknownAttempts = 0;
   unknownCorrect = 0;
   seed: Pos[] = [];
@@ -211,6 +212,7 @@ export class Engine {
     this.bestPts = Math.max(this.bestPts, points);
     this.chainLengthCounts[this.chain.length] =
       (this.chainLengthCounts[this.chain.length] || 0) + 1;
+    this.coefCounts[res.coef] = (this.coefCounts[res.coef] || 0) + 1;
     this.popCells = [...this.chain];
     this.burst = this.chain.map((p) => ({
       r: p.r,
@@ -406,6 +408,7 @@ export class Engine {
     this.bestChain = 0;
     this.bestPts = 0;
     this.chainLengthCounts = {};
+    this.coefCounts = {};
     this.unknownAttempts = 0;
     this.unknownCorrect = 0;
     this.deepCells = [];

@@ -8,17 +8,27 @@ interface DistEntry {
   count: number;
 }
 
+interface CoefEntry {
+  coef: number;
+  count: number;
+}
+
 interface PlayerStats {
   score: number;
   clears: number;
   bestPts: number;
   bestCombo: number;
-  bestChainCells: number;
-  bestChainSegs: number;
   unkAcc: number | null;
   unkText: string;
   dist: DistEntry[];
+  coefDist: CoefEntry[];
 }
+
+const COEF_LABEL: Record<number, string> = {
+  1: "×1 (1:1)",
+  2: "×2 (1:n)",
+  3: "×3 (m:n)",
+};
 
 function statsOf(engine: Engine): PlayerStats {
   const clears = Object.values(engine.chainLengthCounts).reduce(
@@ -28,6 +38,9 @@ function statsOf(engine: Engine): PlayerStats {
   const dist = Object.entries(engine.chainLengthCounts)
     .map(([len, count]) => ({ segs: Number(len) / 2, count }))
     .sort((a, b) => a.segs - b.segs);
+  const coefDist = Object.entries(engine.coefCounts)
+    .map(([coef, count]) => ({ coef: Number(coef), count }))
+    .sort((a, b) => a.coef - b.coef);
   const unkAcc =
     engine.unknownAttempts > 0
       ? Math.round((engine.unknownCorrect / engine.unknownAttempts) * 100)
@@ -41,11 +54,10 @@ function statsOf(engine: Engine): PlayerStats {
     clears,
     bestPts: engine.bestPts || 0,
     bestCombo: engine.bestCombo || 0,
-    bestChainCells: engine.bestChain || 0,
-    bestChainSegs: engine.bestChain ? engine.bestChain / 2 : 0,
     unkAcc,
     unkText,
     dist,
+    coefDist,
   };
 }
 
@@ -71,14 +83,23 @@ function StatBlock({ label, engine }: { label: string; engine: Engine }) {
         <strong>{s.bestCombo}</strong>
       </div>
       <div className="stat-row">
-        <span>最长链</span>
-        <strong>
-          {s.bestChainSegs ? `${s.bestChainSegs} 段 · ${s.bestChainCells} 格` : "—"}
-        </strong>
-      </div>
-      <div className="stat-row">
         <span>未知数正确率</span>
         <strong>{s.unkText}</strong>
+      </div>
+      <div className="stat-dist">
+        <span className="stat-dist-label">难度系数</span>
+        {s.coefDist.length > 0 ? (
+          <div className="stat-dist-tags">
+            {s.coefDist.map(({ coef, count }) => (
+              <span key={coef} className="stat-dist-tag">
+                {COEF_LABEL[coef] ?? `×${coef}`}
+                <b>×{count}</b>
+              </span>
+            ))}
+          </div>
+        ) : (
+          <span className="stat-dist-empty">—</span>
+        )}
       </div>
       <div className="stat-dist">
         <span className="stat-dist-label">链长分布</span>
@@ -105,6 +126,20 @@ function DistCell({ dist }: { dist: DistEntry[] }) {
       {dist.map(({ segs, count }) => (
         <span key={segs} className="stat-dist-tag">
           {segs}段<b>×{count}</b>
+        </span>
+      ))}
+    </div>
+  );
+}
+
+function CoefCell({ coefDist }: { coefDist: CoefEntry[] }) {
+  if (coefDist.length === 0) return <span className="cmp-dist-empty">—</span>;
+  return (
+    <div className="cmp-dist-tags">
+      {coefDist.map(({ coef, count }) => (
+        <span key={coef} className="stat-dist-tag">
+          {COEF_LABEL[coef] ?? `×${coef}`}
+          <b>×{count}</b>
         </span>
       ))}
     </div>
@@ -146,13 +181,6 @@ function ComparisonTable({
       n2: s2.bestCombo,
     },
     {
-      label: "最长链",
-      v1: s1.bestChainSegs ? `${s1.bestChainSegs} 段` : "—",
-      v2: s2.bestChainSegs ? `${s2.bestChainSegs} 段` : "—",
-      n1: s1.bestChainCells,
-      n2: s2.bestChainCells,
-    },
-    {
       label: "未知数正确率",
       v1: s1.unkText,
       v2: s2.unkText,
@@ -181,6 +209,15 @@ function ComparisonTable({
           </div>
         );
       })}
+      <div className="cmp-row-group cmp-row-dist">
+        <div className="cmp-val cmp-val-left">
+          <CoefCell coefDist={s1.coefDist} />
+        </div>
+        <div className="cmp-label">难度系数</div>
+        <div className="cmp-val cmp-val-right">
+          <CoefCell coefDist={s2.coefDist} />
+        </div>
+      </div>
       <div className="cmp-row-group cmp-row-dist">
         <div className="cmp-val cmp-val-left">
           <DistCell dist={s1.dist} />

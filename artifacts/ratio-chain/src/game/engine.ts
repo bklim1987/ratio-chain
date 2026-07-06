@@ -66,6 +66,8 @@ export class Engine {
   comboToken = 0;
   floatText: string | null = null;
   floatToken = 0;
+  scorePop: string | null = null;
+  scorePopToken = 0;
   running = true;
   paused = false;
   pan: Pan;
@@ -222,6 +224,12 @@ export class Engine {
     }
     this.floatText = this.formatFloatScore(points, res);
     this.floatToken++;
+    this.scorePop = `+${points}`;
+    this.scorePopToken++;
+    this.setTimer(() => {
+      this.scorePop = null;
+      this.emit();
+    }, 1100);
     this.setTimer(() => {
       this.comboText = null;
       this.emit();
@@ -389,6 +397,7 @@ export class Engine {
     this.badCells = [];
     this.comboText = null;
     this.floatText = null;
+    this.scorePop = null;
     this.running = true;
     this.paused = false;
     this.computeSeed();

@@ -10,7 +10,7 @@ import {
 } from "@/game/logic";
 import { Engine } from "@/game/engine";
 import type { Mode, Phase } from "@/game/types";
-import { setMuted, playCountdownBeep, playGo } from "@/game/sound";
+import { setMuted, playCountdownBeep, playGo, playResultsFanfare } from "@/game/sound";
 import { StartMenu } from "@/components/StartMenu";
 import { Countdown } from "@/components/Countdown";
 import { PlayerBoard } from "@/components/PlayerBoard";
@@ -155,6 +155,7 @@ function RatioChainGame() {
     if (rafRef.current) cancelAnimationFrame(rafRef.current);
     if (engine1Ref.current) engine1Ref.current.running = false;
     if (engine2Ref.current) engine2Ref.current.running = false;
+    playResultsFanfare();
     setPhase("matchEnd");
     reportTournamentResult();
     rerender();

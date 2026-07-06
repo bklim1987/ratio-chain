@@ -177,6 +177,14 @@ export function PlayerBoard({
               }),
             )}
           </div>
+          {engine.scorePop && (
+            <div
+              key={`scorepop-${engine.scorePopToken}`}
+              className={`score-pop score-pop-${accent}`}
+            >
+              {engine.scorePop}
+            </div>
+          )}
           {engine.comboText && (
             <div key={`combo-${engine.comboToken}`} className="combo-banner">
               {engine.comboText}

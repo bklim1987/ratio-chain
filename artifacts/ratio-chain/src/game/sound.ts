@@ -97,3 +97,10 @@ export function playGo() {
   tone(880, 0, 0.2, "triangle", 0.18);
   tone(1320, 0.05, 0.25, "triangle", 0.14);
 }
+
+// 结算页开启时的欢快短音效：上行大三和弦分解 + 高音收尾。
+export function playResultsFanfare() {
+  const notes = [523, 659, 784, 1047];
+  notes.forEach((f, i) => tone(f, i * 0.1, 0.3, "triangle", 0.16));
+  tone(1319, notes.length * 0.1 + 0.02, 0.5, "triangle", 0.14);
+}

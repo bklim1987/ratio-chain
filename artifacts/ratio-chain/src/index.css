@@ -956,6 +956,42 @@ body {
   100% { opacity: 0; transform: translateX(-50%) translateY(-18px) scale(1); }
 }
 
+/* Candy-crush 风格的醒目飘分：大号 +分数 从盘面中央弹出、快速上飘、一路淡出 */
+.score-pop {
+  position: absolute;
+  top: 46%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  font-size: clamp(2.6rem, 11vw, 5rem);
+  font-weight: 900;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.02em;
+  color: white;
+  -webkit-text-stroke: 2.5px rgba(0, 0, 0, 0.35);
+  paint-order: stroke fill;
+  pointer-events: none;
+  z-index: 30;
+  white-space: nowrap;
+  animation: score-pop-anim 1.05s cubic-bezier(0.2, 0.85, 0.3, 1) forwards;
+}
+.score-pop-p1 {
+  color: hsl(199 95% 72%);
+  -webkit-text-stroke: 2.5px hsl(205 90% 22%);
+  text-shadow: 0 5px 0 rgba(0, 0, 0, 0.28), 0 0 30px hsl(199 95% 60% / 0.9);
+}
+.score-pop-p2 {
+  color: hsl(330 95% 75%);
+  -webkit-text-stroke: 2.5px hsl(325 85% 24%);
+  text-shadow: 0 5px 0 rgba(0, 0, 0, 0.28), 0 0 30px hsl(330 90% 62% / 0.9);
+}
+@keyframes score-pop-anim {
+  0% { opacity: 0; transform: translate(-50%, -30%) scale(0.35) rotate(-4deg); }
+  16% { opacity: 1; transform: translate(-50%, -58%) scale(1.32) rotate(2deg); }
+  30% { opacity: 1; transform: translate(-50%, -66%) scale(1) rotate(0deg); }
+  65% { opacity: 1; }
+  100% { opacity: 0; transform: translate(-50%, -240%) scale(1.05); }
+}
+
 .combo-banner {
   position: absolute;
   top: 8%;

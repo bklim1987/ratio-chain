@@ -168,7 +168,10 @@ export function PlayerBoard({
                     className={classes.join(" ")}
                   >
                     {v != null && (
-                      <div className={`gem ${gemColorClass(v)}`}>
+                      <div
+                        key={`gem-${v}`}
+                        className={`gem ${gemColorClass(v)}`}
+                      >
                         {v === WILD ? "?" : v}
                       </div>
                     )}

@@ -104,13 +104,36 @@ export function PlayerBoard({
 }) {
   const boardRef = useRef<HTMLDivElement | null>(null);
   const gridRef = useRef<HTMLDivElement | null>(null);
+  const shakeWrapRef = useRef<HTMLDivElement | null>(null);
   useBoardPointerHandlers(engine, boardRef);
+
+  // 重播抖动动画时不整盘重挂：移除 class → 强制回流 → 重新加 class。
+  // 避免因改 key 卸载整个棋盘子树，导致每颗宝石的下落动画被误重播。
+  useEffect(() => {
+    const el = shakeWrapRef.current;
+    if (!el || engine.shakeToken === 0) return;
+    el.classList.remove("shake-lv1", "shake-lv2", "shake-lv3");
+    void el.offsetWidth;
+    el.classList.add(`shake-lv${engine.shakeLevel}`);
+  }, [engine.shakeToken, engine.shakeLevel]);
+
+  // 成功时全盘脉冲：同样用回流重启动画，不重挂棋盘。
+  useEffect(() => {
+    const el = gridRef.current;
+    if (!el || engine.pulseToken === 0) return;
+    el.classList.remove("pulse-lv1", "pulse-lv2", "pulse-lv3");
+    void el.offsetWidth;
+    el.classList.add(`pulse-lv${engine.pulseLevel}`);
+  }, [engine.pulseToken, engine.pulseLevel]);
 
   const chainSet = new Set(engine.chain.map(cellKey));
   const popSet = new Set(engine.popCells.map(cellKey));
   const badSet = new Set(engine.badCells.map(cellKey));
   const seedSet = new Set(engine.seed.map(cellKey));
   const deepSet = new Set(engine.deepCells.map(cellKey));
+  const burstMap = new Map(
+    engine.burst.map((b) => [cellKey({ r: b.r, c: b.c }), b.v]),
+  );
 
   const cols = Array.from({ length: COLS }, (_, i) => i);
   const rows = Array.from({ length: ROWS }, (_, i) => i);
@@ -132,12 +155,7 @@ export function PlayerBoard({
       </div>
       <ReadoutBar engine={engine} />
       <div ref={boardRef} className="board-shake-outer">
-        <div
-          key={`shake-${engine.shakeToken}`}
-          className={
-            engine.shakeToken > 0 ? `board-shake-wrap shake-lv${engine.shakeLevel}` : "board-shake-wrap"
-          }
-        >
+        <div ref={shakeWrapRef} className="board-shake-wrap">
           {engine.floatText && (
             <div
               key={`float-${engine.floatToken}`}
@@ -171,9 +189,16 @@ export function PlayerBoard({
                       <div
                         key={`gem-${v}`}
                         className={`gem ${gemColorClass(v)}`}
+                        style={{ animationDelay: `${r * 0.05}s` }}
                       >
                         {v === WILD ? "?" : v}
                       </div>
+                    )}
+                    {burstMap.has(key) && (
+                      <PopParticles
+                        key={`burst-${engine.burstToken}`}
+                        colorClass={gemColorClass(burstMap.get(key)!)}
+                      />
                     )}
                   </div>
                 );
@@ -204,6 +229,27 @@ export function PlayerBoard({
           scope={mode === "duo" ? "panel" : "screen"}
         />
       )}
+    </div>
+  );
+}
+
+const SHARD_COUNT = 9;
+
+function PopParticles({ colorClass }: { colorClass: string }) {
+  return (
+    <div className="pop-particles">
+      {Array.from({ length: SHARD_COUNT }).map((_, i) => (
+        <span
+          key={i}
+          className={`shard ${colorClass}`}
+          style={
+            {
+              "--a": `${(360 / SHARD_COUNT) * i + (i % 2) * 12}deg`,
+              "--d": `${160 + (i % 3) * 45}%`,
+            } as React.CSSProperties
+          }
+        />
+      ))}
     </div>
   );
 }
@@ -258,8 +304,7 @@ function ReadoutBar({ engine }: { engine: Engine }) {
     content = r.text;
     cls = "readout-building";
   } else if (r.kind === "ready") {
-    const cm = formatComboMult(r.comboMult);
-    content = `${r.text}  → +${r.points}（全加${r.fullSum}×长度${r.lm}　⚡${r.combo}×${cm}）`;
+    content = `${r.text}　最简比 ${r.simp}　难度×${r.coef}　预计 +${r.points}`;
     cls = "readout-ready";
   } else if (r.kind === "invalid") {
     content = r.reason ? `${r.text}（${r.reason}）` : r.text;

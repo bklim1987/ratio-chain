@@ -10,7 +10,7 @@ import {
 } from "@/game/logic";
 import { Engine } from "@/game/engine";
 import type { Mode, Phase } from "@/game/types";
-import { setMuted, playCountdownBeep, playGo, playResultsFanfare } from "@/game/sound";
+import { setMuted, playCountdownBeep, playCountdownTick, playGo, playResultsFanfare } from "@/game/sound";
 import { StartMenu } from "@/components/StartMenu";
 import { Countdown } from "@/components/Countdown";
 import { PlayerBoard } from "@/components/PlayerBoard";
@@ -172,7 +172,7 @@ function RatioChainGame() {
       const elapsed = (performance.now() - startTimeRef.current) / 1000;
       const left = Math.max(0, totalSecondsRef.current - Math.floor(elapsed));
       if (left !== prevLeft) {
-        if (left === 3 || left === 2 || left === 1) playCountdownBeep();
+        if (left >= 1 && left <= 5) playCountdownTick(left);
         prevLeft = left;
       }
       setTimeLeft(left);

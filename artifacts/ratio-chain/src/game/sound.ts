@@ -93,6 +93,21 @@ export function playCountdownBeep() {
   tone(660, 0, 0.15, "sine", 0.12);
 }
 
+// 结束前 5→1 的逐秒倒数音，音调逐秒升高制造收尾紧张感。
+const COUNTDOWN_TICK_FREQ: Record<number, number> = {
+  5: 523,
+  4: 587,
+  3: 659,
+  2: 784,
+  1: 988,
+};
+export function playCountdownTick(secondsLeft: number) {
+  const f = COUNTDOWN_TICK_FREQ[secondsLeft];
+  if (!f) return;
+  const urgent = secondsLeft === 1;
+  tone(f, 0, urgent ? 0.24 : 0.16, "sine", urgent ? 0.16 : 0.13);
+}
+
 export function playGo() {
   tone(880, 0, 0.2, "triangle", 0.18);
   tone(1320, 0.05, 0.25, "triangle", 0.14);

@@ -102,7 +102,7 @@ export function lenMult(ratios: number): number {
 
 export const COMBO_G = 0.12;
 export const COMBO_CAP = 5;
-export const SCORE_SCALE = 2;
+export const SCORE_SCALE = 1;
 
 export function comboMult(combo: number): number {
   return Math.min(COMBO_CAP, 1 + combo * COMBO_G);
@@ -112,11 +112,23 @@ export function formatComboMult(cm: number): string {
   return cm % 1 === 0 ? String(cm) : cm.toFixed(2);
 }
 
+// 难度系数：按链的最简比 p:q 定倍率。1:1→×1，1:n→×2，m:n→×3。
+// 越需化简/越难辨认的比越值钱，堵死「等值大数字长链」退化打法。
+export function ratioTier(a: number, b: number): { coef: number; simp: string } {
+  const g = gcd(a, b);
+  const p = a / g;
+  const q = b / g;
+  const coef = p === 1 && q === 1 ? 1 : p === 1 || q === 1 ? 2 : 3;
+  return { coef, simp: `${p}:${q}` };
+}
+
 export interface ScoreResult {
   points: number;
   fullSum: number;
   ratios: number;
   lm: number;
+  coef: number;
+  simp: string;
   combo: number;
   comboMult: number;
   text: string;
@@ -133,11 +145,15 @@ export function scoreKnown(vals: Cell[], combo = 0): ScoreResult | null {
   const ratios = pairs.length;
   const lm = lenMult(ratios);
   const cm = comboMult(combo);
+  const [a0, b0] = pairs[0];
+  const { coef, simp } = ratioTier(a0, b0);
   return {
-    points: Math.max(1, Math.round(fullSum * lm * cm * SCORE_SCALE)),
+    points: Math.max(1, Math.round(fullSum * lm * coef * cm * SCORE_SCALE)),
     fullSum,
     ratios,
     lm,
+    coef,
+    simp,
     combo,
     comboMult: cm,
     text: pairs.map(([a, b]) => `${a}:${b}`).join(" = "),

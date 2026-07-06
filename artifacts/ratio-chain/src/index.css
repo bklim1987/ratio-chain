@@ -839,6 +839,47 @@ body {
   width: min(100%, calc(100dvh - 150px));
 }
 
+/* 成功时全盘脉冲：轻微放大 + 随连比强度增强的辉光闪一下 */
+.pulse-lv1 { animation: board-pulse-1 0.4s ease; }
+.pulse-lv2 { animation: board-pulse-2 0.46s ease; }
+.pulse-lv3 { animation: board-pulse-3 0.55s cubic-bezier(0.34, 1.4, 0.64, 1); }
+@keyframes board-pulse-1 {
+  0%, 100% { transform: scale(1); box-shadow: 0 0 0 0 hsl(45 100% 60% / 0); }
+  35% { transform: scale(1.02); box-shadow: 0 0 0 3px hsl(45 100% 62% / 0.35), 0 0 26px 2px hsl(45 100% 60% / 0.4); }
+}
+@keyframes board-pulse-2 {
+  0%, 100% { transform: scale(1); box-shadow: 0 0 0 0 hsl(30 100% 58% / 0); }
+  35% { transform: scale(1.032); box-shadow: 0 0 0 4px hsl(30 100% 60% / 0.45), 0 0 34px 4px hsl(20 100% 58% / 0.5); }
+}
+@keyframes board-pulse-3 {
+  0%, 100% { transform: scale(1); box-shadow: 0 0 0 0 hsl(330 100% 62% / 0); }
+  30% { transform: scale(1.045); box-shadow: 0 0 0 5px hsl(330 100% 65% / 0.5), 0 0 46px 6px hsl(280 100% 62% / 0.6); }
+}
+
+/* 消除格子爆裂彩色碎片 */
+.pop-particles {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 20;
+}
+.shard {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 20%;
+  height: 20%;
+  margin: -10% 0 0 -10%;
+  border-radius: 3px;
+  box-shadow: 0 0 6px rgba(255, 255, 255, 0.35);
+  animation: shard-fly 0.42s cubic-bezier(0.25, 0.6, 0.4, 1) forwards;
+}
+@keyframes shard-fly {
+  0% { opacity: 1; transform: rotate(var(--a)) translateY(0) rotate(calc(var(--a) * -1)) scale(1); }
+  70% { opacity: 1; }
+  100% { opacity: 0; transform: rotate(var(--a)) translateY(calc(var(--d) * -1)) rotate(calc(var(--a) * -1)) scale(0.3); }
+}
+
 .cell {
   position: relative;
   display: flex;
@@ -899,16 +940,13 @@ body {
   color: white;
   text-shadow: 0 1px 3px rgba(0,0,0,0.7), 0 0 2px rgba(0,0,0,0.6);
   box-shadow: inset 0 -3px 0 rgba(0,0,0,0.2), 0 2px 4px rgba(0,0,0,0.25);
-  animation: gem-drop 0.44s cubic-bezier(0.45, 0, 0.7, 1);
+  animation: gem-drop 0.34s cubic-bezier(0.55, 0.05, 0.85, 1) backwards;
 }
 .cell-selected .gem { position: relative; z-index: 16; }
 @keyframes gem-drop {
-  0% { transform: translateY(-180%) scale(0.94); opacity: 0; }
-  35% { opacity: 1; }
-  62% { transform: translateY(6%) scaleX(1.12) scaleY(0.82); opacity: 1; }
-  78% { transform: translateY(-4%) scaleX(0.94) scaleY(1.08); }
-  90% { transform: translateY(1%) scaleX(1.03) scaleY(0.97); }
-  100% { transform: translateY(0) scale(1); }
+  0% { transform: translateY(-210%); opacity: 0; }
+  30% { opacity: 1; }
+  100% { transform: translateY(0); opacity: 1; }
 }
 
 .gem-wild { background: linear-gradient(135deg, hsl(280 70% 45%), hsl(320 75% 50%)); }

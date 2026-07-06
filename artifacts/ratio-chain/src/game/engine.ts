@@ -25,6 +25,8 @@ export type Readout =
       points: number;
       fullSum: number;
       lm: number;
+      coef: number;
+      simp: string;
       combo: number;
       comboMult: number;
     }
@@ -60,6 +62,10 @@ export class Engine {
   readout: Readout = { kind: "idle" };
   popCells: Pos[] = [];
   badCells: Pos[] = [];
+  burst: { r: number; c: number; v: Cell }[] = [];
+  burstToken = 0;
+  pulseToken = 0;
+  pulseLevel = 1;
   shakeToken = 0;
   shakeLevel = 1;
   comboText: string | null = null;
@@ -189,7 +195,7 @@ export class Engine {
 
   private formatFloatScore(points: number, res: ScoreResult): string {
     const cm = formatComboMult(res.comboMult);
-    return `+${points}　全加${res.fullSum}×长度${res.lm}　⚡连击${res.combo} ×${cm}`;
+    return `+${points}　全加${res.fullSum}×长度${res.lm}×难度${res.coef}(${res.simp})　⚡连击${res.combo} ×${cm}`;
   }
 
   private succeed(res: ScoreResult, note = "") {
@@ -206,7 +212,15 @@ export class Engine {
     this.chainLengthCounts[this.chain.length] =
       (this.chainLengthCounts[this.chain.length] || 0) + 1;
     this.popCells = [...this.chain];
+    this.burst = this.chain.map((p) => ({
+      r: p.r,
+      c: p.c,
+      v: this.grid[p.r][p.c] as Cell,
+    }));
+    this.burstToken++;
     this.shakeLevel = res.ratios >= 5 ? 3 : res.ratios >= 3 ? 2 : 1;
+    this.pulseLevel = this.shakeLevel;
+    this.pulseToken++;
     this.shakeToken++;
     const toClear = [...this.chain];
     this.chain = [];
@@ -226,6 +240,10 @@ export class Engine {
     this.floatToken++;
     this.scorePop = `+${points}`;
     this.scorePopToken++;
+    this.setTimer(() => {
+      this.burst = [];
+      this.emit();
+    }, 480);
     this.setTimer(() => {
       this.scorePop = null;
       this.emit();
@@ -362,6 +380,8 @@ export class Engine {
             points: res.points,
             fullSum: res.fullSum,
             lm: res.lm,
+            coef: res.coef,
+            simp: res.simp,
             combo: res.combo,
             comboMult: res.comboMult,
           }
@@ -395,6 +415,7 @@ export class Engine {
     this.readout = { kind: "idle" };
     this.popCells = [];
     this.badCells = [];
+    this.burst = [];
     this.comboText = null;
     this.floatText = null;
     this.scorePop = null;

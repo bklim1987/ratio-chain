@@ -7,6 +7,7 @@ import {
   type Pos,
   type ChainAnalysis,
   type ScoreResult,
+  type BestPtsDetail,
   adjacent,
   analyzeChain,
   evaluateKnown,
@@ -52,6 +53,7 @@ export class Engine {
   bestCombo = 0;
   bestChain = 0;
   bestPts = 0;
+  bestPtsDetail: BestPtsDetail | null = null;
   chainLengthCounts: Record<number, number> = {};
   coefCounts: Record<number, number> = {};
   unknownAttempts = 0;
@@ -204,6 +206,7 @@ export class Engine {
   }
 
   private succeed(res: ScoreResult, note = "") {
+    const deepHalved = this.deepPenalty;
     let points = res.points;
     if (this.deepPenalty) {
       points = Math.max(1, Math.round(points * 0.5));
@@ -213,7 +216,20 @@ export class Engine {
     this.score += points;
     this.bestCombo = Math.max(this.bestCombo, res.combo);
     this.bestChain = Math.max(this.bestChain, this.chain.length);
-    this.bestPts = Math.max(this.bestPts, points);
+    if (points > this.bestPts) {
+      this.bestPts = points;
+      this.bestPtsDetail = {
+        text: res.text,
+        points,
+        fullSum: res.fullSum,
+        lm: res.lm,
+        coef: res.coef,
+        simp: res.simp,
+        combo: res.combo,
+        comboMult: res.comboMult,
+        deepHalved,
+      };
+    }
     this.chainLengthCounts[this.chain.length] =
       (this.chainLengthCounts[this.chain.length] || 0) + 1;
     this.coefCounts[res.coef] = (this.coefCounts[res.coef] || 0) + 1;
@@ -423,6 +439,7 @@ export class Engine {
     this.bestCombo = 0;
     this.bestChain = 0;
     this.bestPts = 0;
+    this.bestPtsDetail = null;
     this.chainLengthCounts = {};
     this.coefCounts = {};
     this.unknownAttempts = 0;

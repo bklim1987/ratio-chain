@@ -122,6 +122,25 @@ export function ratioTier(a: number, b: number): { coef: number; simp: string } 
   return { coef, simp: `${p}:${q}` };
 }
 
+export interface BestPtsDetail {
+  text: string;
+  points: number;
+  fullSum: number;
+  lm: number;
+  coef: number;
+  simp: string;
+  combo: number;
+  comboMult: number;
+  deepHalved: boolean;
+}
+
+export function formatBestPtsFormula(d: BestPtsDetail): string {
+  const cm = formatComboMult(d.comboMult);
+  let s = `全加${d.fullSum} × 长度${d.lm} × 难度${d.coef}(${d.simp}) × 连击${cm}`;
+  if (d.deepHalved) s += " × 0.5（深提示减半）";
+  return `${s} = ${d.points}`;
+}
+
 export interface ScoreResult {
   points: number;
   fullSum: number;

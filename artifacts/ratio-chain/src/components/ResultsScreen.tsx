@@ -2,6 +2,7 @@ import { useState } from "react";
 import type { Engine } from "@/game/engine";
 import type { Mode } from "@/game/types";
 import { saveScore } from "@/game/leaderboard";
+import { formatBestPtsFormula, type BestPtsDetail } from "@/game/logic";
 
 interface DistEntry {
   segs: number;
@@ -17,11 +18,33 @@ interface PlayerStats {
   score: number;
   clears: number;
   bestPts: number;
+  bestPtsDetail: BestPtsDetail | null;
   bestCombo: number;
   unkAcc: number | null;
   unkText: string;
   dist: DistEntry[];
   coefDist: CoefEntry[];
+}
+
+function BestPtsDetailView({ detail }: { detail: BestPtsDetail | null }) {
+  if (!detail) return null;
+  return (
+    <div className="stat-best-detail">
+      <div className="stat-best-chain">{detail.text}</div>
+      <div className="stat-best-formula">{formatBestPtsFormula(detail)}</div>
+    </div>
+  );
+}
+
+function BestPtsCell({ detail, pts }: { detail: BestPtsDetail | null; pts: number }) {
+  if (!detail) return <>{pts || "—"}</>;
+  return (
+    <div className="cmp-best-detail">
+      <div className="cmp-best-pts">{pts}</div>
+      <div className="stat-best-chain">{detail.text}</div>
+      <div className="stat-best-formula">{formatBestPtsFormula(detail)}</div>
+    </div>
+  );
 }
 
 const COEF_LABEL: Record<number, string> = {
@@ -53,6 +76,7 @@ function statsOf(engine: Engine): PlayerStats {
     score: engine.score,
     clears,
     bestPts: engine.bestPts || 0,
+    bestPtsDetail: engine.bestPtsDetail,
     bestCombo: engine.bestCombo || 0,
     unkAcc,
     unkText,
@@ -67,16 +91,8 @@ function StatBlock({ label, engine }: { label: string; engine: Engine }) {
     <div className="stat-block">
       <div className="stat-block-title">{label}</div>
       <div className="stat-row">
-        <span>最终得分</span>
-        <strong>{s.score}</strong>
-      </div>
-      <div className="stat-row">
         <span>消除链数</span>
         <strong>{s.clears}</strong>
-      </div>
-      <div className="stat-row">
-        <span>单次最高得分</span>
-        <strong>{s.bestPts}</strong>
       </div>
       <div className="stat-row">
         <span>最高连击</span>
@@ -114,6 +130,11 @@ function StatBlock({ label, engine }: { label: string; engine: Engine }) {
         ) : (
           <span className="stat-dist-empty">—</span>
         )}
+      </div>
+      <div className="stat-dist">
+        <span className="stat-dist-label">单次最高得分</span>
+        <strong className="stat-best-pts-value">{s.bestPts || "—"}</strong>
+        <BestPtsDetailView detail={s.bestPtsDetail} />
       </div>
     </div>
   );
@@ -164,15 +185,7 @@ function ComparisonTable({
     n1: number | null;
     n2: number | null;
   }[] = [
-    { label: "最终得分", v1: s1.score, v2: s2.score, n1: s1.score, n2: s2.score },
     { label: "消除链数", v1: s1.clears, v2: s2.clears, n1: s1.clears, n2: s2.clears },
-    {
-      label: "单次最高得分",
-      v1: s1.bestPts,
-      v2: s2.bestPts,
-      n1: s1.bestPts,
-      n2: s2.bestPts,
-    },
     {
       label: "最高连击",
       v1: s1.bestCombo,
@@ -218,7 +231,7 @@ function ComparisonTable({
           <CoefCell coefDist={s2.coefDist} />
         </div>
       </div>
-      <div className="cmp-row-group cmp-row-dist">
+      <div className="cmp-row-group cmp-row-dist cmp-row-tall">
         <div className="cmp-val cmp-val-left">
           <DistCell dist={s1.dist} />
         </div>
@@ -227,25 +240,48 @@ function ComparisonTable({
           <DistCell dist={s2.dist} />
         </div>
       </div>
+      <div className="cmp-row-group cmp-row-tall">
+        <div
+          className={`cmp-val cmp-val-left${
+            s1.bestPts > s2.bestPts ? " cmp-val-win" : ""
+          }`}
+        >
+          <BestPtsCell detail={s1.bestPtsDetail} pts={s1.bestPts} />
+        </div>
+        <div className="cmp-label">单次最高得分</div>
+        <div
+          className={`cmp-val cmp-val-right${
+            s2.bestPts > s1.bestPts ? " cmp-val-win" : ""
+          }`}
+        >
+          <BestPtsCell detail={s2.bestPtsDetail} pts={s2.bestPts} />
+        </div>
+      </div>
     </div>
   );
 }
 
 function SaveRow({
+  rowKey,
   defaultName,
   score,
   mode,
+  saved,
+  onSaved,
 }: {
+  rowKey: string;
   defaultName: string;
   score: number;
   mode: Mode;
+  saved: boolean;
+  onSaved: (key: string) => void;
 }) {
   const [name, setName] = useState("");
-  const [saved, setSaved] = useState(false);
 
   function handleSave() {
+    if (saved) return;
     saveScore({ name: name.trim() || defaultName, score, mode });
-    setSaved(true);
+    onSaved(rowKey);
   }
 
   return (
@@ -282,28 +318,48 @@ function SaveScoreModal({
   engine2,
   nameA,
   nameB,
-  onClose,
+  savedKeys,
+  onSaved,
+  onComplete,
 }: {
   mode: Mode;
   engine1: Engine;
   engine2: Engine | null;
   nameA: string;
   nameB: string;
-  onClose: () => void;
+  savedKeys: Set<string>;
+  onSaved: (key: string) => void;
+  onComplete: () => void;
 }) {
   return (
-    <div className="overlay-screen" onClick={onClose}>
-      <div className="overlay-card" onClick={(e) => e.stopPropagation()}>
+    <div className="overlay-screen save-modal-screen">
+      <div className="overlay-card">
         <h2 className="overlay-title">保存分数</h2>
-        <p className="leaderboard-note">输入名字后保存，可只存一方或双方，成绩仅保存在本机</p>
+        <p className="leaderboard-note">
+          输入名字后保存，可只存一方或双方；点「完成」关闭，成绩仅保存在本机
+        </p>
         <div className="save-rows">
-          <SaveRow defaultName={nameA} score={engine1.score} mode={mode} />
+          <SaveRow
+            rowKey="p1"
+            defaultName={nameA}
+            score={engine1.score}
+            mode={mode}
+            saved={savedKeys.has("p1")}
+            onSaved={onSaved}
+          />
           {mode === "duo" && engine2 && (
-            <SaveRow defaultName={nameB} score={engine2.score} mode={mode} />
+            <SaveRow
+              rowKey="p2"
+              defaultName={nameB}
+              score={engine2.score}
+              mode={mode}
+              saved={savedKeys.has("p2")}
+              onSaved={onSaved}
+            />
           )}
         </div>
         <div className="overlay-actions">
-          <button className="menu-start-btn" onClick={onClose}>
+          <button className="menu-start-btn" onClick={onComplete}>
             完成
           </button>
         </div>
@@ -332,6 +388,27 @@ export function MatchEndScreen({
   nameB?: string;
 }) {
   const [showSave, setShowSave] = useState(false);
+  const [saveCompleted, setSaveCompleted] = useState(false);
+  const [savedKeys, setSavedKeys] = useState<Set<string>>(() => new Set());
+
+  function handleSaved(key: string) {
+    setSavedKeys((prev) => new Set(prev).add(key));
+  }
+
+  function handleSaveComplete() {
+    setShowSave(false);
+    setSaveCompleted(true);
+  }
+
+  const saveBtn = (
+    <button
+      className={`menu-secondary-btn${saveCompleted ? " menu-secondary-btn-done" : ""}`}
+      disabled={saveCompleted}
+      onClick={() => setShowSave(true)}
+    >
+      {saveCompleted ? "✓ 已保存" : "保存分数"}
+    </button>
+  );
 
   if (mode === "solo") {
     return (
@@ -345,9 +422,7 @@ export function MatchEndScreen({
               <button className="menu-start-btn" onClick={onReplay}>
                 再来一局
               </button>
-              <button className="menu-secondary-btn" onClick={() => setShowSave(true)}>
-                保存分数
-              </button>
+              {saveBtn}
               <button className="menu-secondary-btn" onClick={onMenu}>
                 返回菜单
               </button>
@@ -361,7 +436,9 @@ export function MatchEndScreen({
             engine2={null}
             nameA={nameA}
             nameB={nameB}
-            onClose={() => setShowSave(false)}
+            savedKeys={savedKeys}
+            onSaved={handleSaved}
+            onComplete={handleSaveComplete}
           />
         )}
       </div>
@@ -401,9 +478,7 @@ export function MatchEndScreen({
             <button className="menu-start-btn" onClick={onReplay}>
               再来一局
             </button>
-            <button className="menu-secondary-btn" onClick={() => setShowSave(true)}>
-              保存分数
-            </button>
+            {saveBtn}
             <button className="menu-secondary-btn" onClick={onMenu}>
               返回菜单
             </button>
@@ -417,7 +492,9 @@ export function MatchEndScreen({
           engine2={engine2}
           nameA={nameA}
           nameB={nameB}
-          onClose={() => setShowSave(false)}
+          savedKeys={savedKeys}
+          onSaved={handleSaved}
+          onComplete={handleSaveComplete}
         />
       )}
     </div>

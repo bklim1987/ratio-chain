@@ -572,6 +572,13 @@ body {
   border: 1px solid hsl(245 20% 28%);
   cursor: pointer;
 }
+.menu-secondary-btn:disabled,
+.menu-secondary-btn-done {
+  cursor: default;
+  opacity: 0.65;
+  color: hsl(140 55% 72%);
+  border-color: hsl(140 40% 30%);
+}
 
 .menu-entry-row {
   display: flex;
@@ -1230,6 +1237,41 @@ body {
 .stat-block-title { font-weight: 800; margin-bottom: 0.5rem; }
 .stat-row { display: flex; justify-content: space-between; font-size: 0.85rem; padding: 0.15rem 0; color: hsl(245 10% 75%); }
 .stat-row strong { color: hsl(250 30% 95%); }
+
+.stat-best-detail {
+  margin: 0.35rem 0 0;
+  padding: 0.55rem 0.65rem;
+  background: hsl(245 28% 14%);
+  border-radius: 0.6rem;
+  text-align: left;
+}
+.stat-best-chain {
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: hsl(250 30% 90%);
+  margin-bottom: 0.25rem;
+}
+.stat-best-formula {
+  font-size: 0.72rem;
+  line-height: 1.45;
+  color: hsl(245 12% 68%);
+  word-break: break-word;
+}
+.stat-best-pts-value {
+  display: block;
+  font-size: 1.1rem;
+  font-weight: 900;
+  color: hsl(45 90% 65%);
+  margin: 0.2rem 0 0.35rem;
+}
+.save-modal-screen { cursor: default; }
+.cmp-best-detail { text-align: inherit; }
+.cmp-best-pts { font-weight: 900; margin-bottom: 0.25rem; }
+.cmp-row-tall > div { align-items: flex-start; padding-top: 0.65rem; padding-bottom: 0.65rem; }
+.cmp-row-tall .cmp-val-left { flex-direction: column; align-items: flex-end; }
+.cmp-row-tall .cmp-val-right { flex-direction: column; align-items: flex-start; }
+.cmp-row-tall .stat-best-chain,
+.cmp-row-tall .stat-best-formula { text-align: inherit; max-width: 11rem; }
 
 .stat-dist {
   margin-top: 0.55rem;

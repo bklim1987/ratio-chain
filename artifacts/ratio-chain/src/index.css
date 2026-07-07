@@ -470,7 +470,9 @@ body {
 .menu-title {
   font-size: 2.75rem;
   font-weight: 900;
-  background: linear-gradient(135deg, hsl(262 90% 72%), hsl(330 85% 65%), hsl(38 92% 62%));
+  line-height: 1.25;
+  padding-top: 0.15rem;
+  background: linear-gradient(135deg, hsl(199 95% 62%), hsl(0 78% 58%));
   -webkit-background-clip: text;
   background-clip: text;
   color: transparent;
@@ -653,8 +655,10 @@ body {
   text-align: center;
   font-size: 1.6rem;
   font-weight: 900;
-  padding-top: 1rem;
-  background: linear-gradient(135deg, hsl(280 90% 72%), hsl(330 85% 65%));
+  line-height: 1.35;
+  padding: 1.5rem 0.5rem 0.35rem;
+  padding-top: max(1.5rem, env(safe-area-inset-top, 0px));
+  background: linear-gradient(135deg, hsl(199 95% 62%), hsl(0 78% 58%));
   -webkit-background-clip: text;
   background-clip: text;
   color: transparent;
@@ -1452,4 +1456,39 @@ body {
   .game-layout-duo .player-panel { flex: 1 1 auto; }
   .game-layout-duo .center-hud { flex: 0 0 auto; flex-direction: row; justify-content: space-between; padding: 0.25rem 0.5rem; }
   .modal-options { grid-template-columns: 1fr; }
+
+  /* 读数栏固定两行高度，换行时不挤推棋盘 */
+  .player-panel {
+    display: grid;
+    grid-template-rows: auto var(--readout-slot-h, 3.35rem) auto;
+    grid-template-areas:
+      "header"
+      "readout"
+      "board";
+  }
+  .player-header { grid-area: header; }
+  .readout-bar {
+    grid-area: readout;
+    align-self: stretch;
+    margin: 0 0 0.35rem;
+    min-height: var(--readout-slot-h, 3.35rem);
+    max-height: var(--readout-slot-h, 3.35rem);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    line-height: 1.4;
+    font-size: 0.84rem;
+    overflow: hidden;
+  }
+  .board-shake-outer {
+    grid-area: board;
+    margin-top: 0;
+  }
+
+  /* 手机端数字更大、宝石略放大 */
+  .gem {
+    width: calc(100% - 8px);
+    height: calc(100% - 8px);
+    font-size: clamp(1.45rem, 6.5vw, 2.35rem);
+  }
 }

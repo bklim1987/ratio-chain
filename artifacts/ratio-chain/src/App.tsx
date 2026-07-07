@@ -202,6 +202,7 @@ function RatioChainGame() {
   return (
     <div
       className={`game-root ${phase === "playing" && mode === "duo" ? "game-root-bottom" : ""}`}
+      onContextMenu={(e) => e.preventDefault()}
     >
       {phase === "menu" && !IS_TOURNAMENT && (
         <StartMenu

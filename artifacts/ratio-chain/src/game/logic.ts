@@ -112,13 +112,20 @@ export function formatComboMult(cm: number): string {
   return cm % 1 === 0 ? String(cm) : cm.toFixed(2);
 }
 
-// 难度系数：按链的最简比 p:q 定倍率。1:1→×1，1:n→×2，m:n→×3。
-// 越需化简/越难辨认的比越值钱，堵死「等值大数字长链」退化打法。
-export function ratioTier(a: number, b: number): { coef: number; simp: string } {
+// 难度系数（混合规则）：最简比形状 + m:n 需 ≥3 个不同数字才 ×3。
+// 1:1→×1；1:n→×2；m:n 且 distinct≥3→×3；m:n 但仅重复同一对（2 个数）→×2。
+export function ratioTier(
+  a: number,
+  b: number,
+  vals: number[],
+): { coef: number; simp: string } {
   const g = gcd(a, b);
   const p = a / g;
   const q = b / g;
-  const coef = p === 1 && q === 1 ? 1 : p === 1 || q === 1 ? 2 : 3;
+  let coef: number;
+  if (p === 1 && q === 1) coef = 1;
+  else if (p === 1 || q === 1) coef = 2;
+  else coef = new Set(vals).size >= 3 ? 3 : 2;
   return { coef, simp: `${p}:${q}` };
 }
 
@@ -165,7 +172,8 @@ export function scoreKnown(vals: Cell[], combo = 0): ScoreResult | null {
   const lm = lenMult(ratios);
   const cm = comboMult(combo);
   const [a0, b0] = pairs[0];
-  const { coef, simp } = ratioTier(a0, b0);
+  const nums = vals.map((v) => v as number);
+  const { coef, simp } = ratioTier(a0, b0, nums);
   return {
     points: Math.max(1, Math.round(fullSum * lm * coef * cm * SCORE_SCALE)),
     fullSum,
@@ -368,13 +376,168 @@ export function findAnyValidChain(grid: Grid): boolean {
   return !!findChainCoords(grid, 4);
 }
 
+function isKnownCell(grid: Grid, r: number, c: number): boolean {
+  const v = grid[r][c];
+  return v != null && v !== WILD;
+}
+
+function findChainFromCell(
+  grid: Grid,
+  sr: number,
+  sc: number,
+  length: number,
+): Pos[] | null {
+  if (!isKnownCell(grid, sr, sc)) return null;
+  const used = Array.from({ length: ROWS }, () => Array(COLS).fill(false));
+  const path: number[] = [];
+  const co: Pos[] = [];
+
+  function consistent(): boolean {
+    let ref: string | null = null;
+    for (let i = 0; i + 1 < path.length; i += 2) {
+      const a = path[i];
+      const b = path[i + 1];
+      const g = gcd(a, b);
+      const key = `${a / g}:${b / g}`;
+      if (ref == null) ref = key;
+      else if (ref !== key) return false;
+    }
+    return true;
+  }
+
+  function dfs(r: number, c: number): Pos[] | null {
+    used[r][c] = true;
+    path.push(grid[r][c] as number);
+    co.push({ r, c });
+    if (path.length % 2 === 0 && !consistent()) {
+      used[r][c] = false;
+      path.pop();
+      co.pop();
+      return null;
+    }
+    if (path.length === length && evaluateKnown(path)) {
+      const res = [...co];
+      used[r][c] = false;
+      path.pop();
+      co.pop();
+      return res;
+    }
+    if (path.length < length) {
+      for (const [dc, dr] of shuffle(N8)) {
+        const nr = r + dr;
+        const nc = c + dc;
+        if (!inBounds(nr, nc) || used[nr][nc] || !isKnownCell(grid, nr, nc)) {
+          continue;
+        }
+        const g = dfs(nr, nc);
+        if (g) {
+          used[r][c] = false;
+          path.pop();
+          co.pop();
+          return g;
+        }
+      }
+    }
+    used[r][c] = false;
+    path.pop();
+    co.pop();
+    return null;
+  }
+
+  return dfs(sr, sc);
+}
+
+function boardRichness(grid: Grid): number {
+  let total = 0;
+  let canStart = 0;
+  for (let r = 0; r < ROWS; r++) {
+    for (let c = 0; c < COLS; c++) {
+      if (!isKnownCell(grid, r, c)) continue;
+      total++;
+      if (findChainFromCell(grid, r, c, 4)) canStart++;
+    }
+  }
+  return total === 0 ? 0 : canStart / total;
+}
+
+function chainBaseScore(vals: number[]): number {
+  if (!evaluateKnown(vals)) return 0;
+  let fullSum = 0;
+  for (const v of vals) fullSum += v;
+  const ratios = vals.length / 2;
+  const lm = lenMult(ratios);
+  const { coef } = ratioTier(vals[0], vals[1], vals);
+  return fullSum * lm * coef;
+}
+
+const CHAIN_SAMPLE_LENGTHS = [8, 6, 4];
+const CHAIN_SAMPLE_COUNT = 30;
+
+function sampleFattestChainBase(grid: Grid): number {
+  let maxBase = 0;
+  for (let i = 0; i < CHAIN_SAMPLE_COUNT; i++) {
+    let chain: Pos[] | null = null;
+    for (const len of CHAIN_SAMPLE_LENGTHS) {
+      chain = findChainCoords(grid, len);
+      if (chain) break;
+    }
+    if (!chain) continue;
+    const vals = chain.map((p) => grid[p.r][p.c] as number);
+    maxBase = Math.max(maxBase, chainBaseScore(vals));
+  }
+  return maxBase;
+}
+
+interface StartBoardSpec {
+  richnessMin: number;
+  baseMin: number;
+  baseMax: number;
+  maxTries: number;
+}
+
+const START_BOARD_STRICT: StartBoardSpec = {
+  richnessMin: 0.65,
+  baseMin: 600,
+  baseMax: 900,
+  maxTries: 30,
+};
+
+const START_BOARD_RELAXED: StartBoardSpec = {
+  richnessMin: 0.6,
+  baseMin: 500,
+  baseMax: 1000,
+  maxTries: 30,
+};
+
+function passesStartBoardSpec(grid: Grid, spec: StartBoardSpec): boolean {
+  if (!findAnyValidChain(grid)) return false;
+  if (boardRichness(grid) < spec.richnessMin) return false;
+  const base = sampleFattestChainBase(grid);
+  return base >= spec.baseMin && base <= spec.baseMax;
+}
+
+function randomGrid(pool: number[], unknownProb: number): Grid {
+  return Array.from({ length: ROWS }, () =>
+    Array.from({ length: COLS }, () => randVal(pool, unknownProb)),
+  );
+}
+
+export function cloneGrid(grid: Grid): Grid {
+  return grid.map((row) => [...row]);
+}
+
 export function newBoard(pool: number[], unknownProb: number): Grid {
+  for (const spec of [START_BOARD_STRICT, START_BOARD_RELAXED]) {
+    for (let tries = 0; tries < spec.maxTries; tries++) {
+      const grid = randomGrid(pool, unknownProb);
+      if (passesStartBoardSpec(grid, spec)) return grid;
+    }
+  }
+
   let grid: Grid;
   let tries = 0;
   do {
-    grid = Array.from({ length: ROWS }, () =>
-      Array.from({ length: COLS }, () => randVal(pool, unknownProb)),
-    );
+    grid = randomGrid(pool, unknownProb);
     tries++;
   } while (!findAnyValidChain(grid) && tries < 200);
   return grid;

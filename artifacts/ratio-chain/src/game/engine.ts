@@ -92,12 +92,13 @@ export class Engine {
     unknownProb: number,
     onChange: () => void,
     pan: Pan = 0,
+    initialGrid?: Grid,
   ) {
     this.pool = pool;
     this.unknownProb = unknownProb;
     this.onChange = onChange;
     this.pan = pan;
-    this.grid = newBoard(pool, unknownProb);
+    this.grid = initialGrid ?? newBoard(pool, unknownProb);
     this.computeSeed();
   }
 
@@ -427,11 +428,11 @@ export class Engine {
     }
   }
 
-  reset(pool: number[], unknownProb: number) {
+  reset(pool: number[], unknownProb: number, initialGrid?: Grid) {
     this.destroy();
     this.pool = pool;
     this.unknownProb = unknownProb;
-    this.grid = newBoard(pool, unknownProb);
+    this.grid = initialGrid ?? newBoard(pool, unknownProb);
     this.chain = [];
     this.dragging = false;
     this.score = 0;

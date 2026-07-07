@@ -7,6 +7,8 @@ import NotFound from "@/pages/not-found";
 import {
   ROUND_CONFIG,
   buildWeightedPool,
+  cloneGrid,
+  newBoard,
 } from "@/game/logic";
 import { Engine } from "@/game/engine";
 import type { Mode, Phase } from "@/game/types";
@@ -64,15 +66,17 @@ function RatioChainGame() {
   function startEngines(m: Mode) {
     const cfg = ROUND_CONFIG;
     const pool = buildWeightedPool(cfg.weights);
+    const startGrid = newBoard(pool, cfg.unknownProb);
     if (!engine1Ref.current) {
       engine1Ref.current = new Engine(
         pool,
         cfg.unknownProb,
         rerender,
         m === "duo" ? -1 : 0,
+        cloneGrid(startGrid),
       );
     } else {
-      engine1Ref.current.reset(pool, cfg.unknownProb);
+      engine1Ref.current.reset(pool, cfg.unknownProb, cloneGrid(startGrid));
       engine1Ref.current.pan = m === "duo" ? -1 : 0;
     }
     engine1Ref.current.seedOn = seedOn;
@@ -85,9 +89,10 @@ function RatioChainGame() {
           cfg.unknownProb,
           rerender,
           1,
+          cloneGrid(startGrid),
         );
       } else {
-        engine2Ref.current.reset(pool, cfg.unknownProb);
+        engine2Ref.current.reset(pool, cfg.unknownProb, cloneGrid(startGrid));
         engine2Ref.current.pan = 1;
       }
       engine2Ref.current.seedOn = seedOn;

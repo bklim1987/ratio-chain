@@ -179,10 +179,21 @@ export function scoreKnown(vals: Cell[], combo = 0): ScoreResult | null {
   };
 }
 
+export type UnknownChainInfo = {
+  type: "unknown";
+  idx: number;
+  required: number;
+  ref: [number, number];
+  unkSide: "left" | "right";
+  partner: number;
+  kc: number | null;
+  kd: number | null;
+};
+
 export type ChainAnalysis =
   | { type: "invalid"; reason?: string }
   | { type: "known" }
-  | { type: "unknown"; idx: number; required: number; ref: [number, number] };
+  | UnknownChainInfo;
 
 export function analyzeChain(vals: Cell[]): ChainAnalysis {
   if (vals.length < 4 || vals.length % 2 !== 0) return { type: "invalid" };
@@ -222,39 +233,61 @@ export function analyzeChain(vals: Cell[]): ChainAnalysis {
     required = ((a as number) * rq) / rp;
   }
   if (required <= 0) return { type: "invalid", reason: "填不出正整数" };
-  return { type: "unknown", idx: wi, required, ref: [rp, rq] };
+
+  const unkSide: "left" | "right" = a === WILD ? "left" : "right";
+  const partner = (a === WILD ? b : a) as number;
+  let kc: number | null = null;
+  let kd: number | null = null;
+  for (const [pa, pb] of pairs) {
+    if (pa !== WILD && pb !== WILD) {
+      kc = pa as number;
+      kd = pb as number;
+      break;
+    }
+  }
+
+  return {
+    type: "unknown",
+    idx: wi,
+    required,
+    ref: [rp, rq],
+    unkSide,
+    partner,
+    kc,
+    kd,
+  };
 }
 
-export function makeOptions(required: number, ref: [number, number]): number[] {
+export function makeOptions(info: UnknownChainInfo): number[] {
+  const { required, ref, unkSide, partner, kc, kd } = info;
   const [rp, rq] = ref;
   const set = new Set<number>([required]);
   const out: number[] = [];
-  const cand = [
-    Math.round((required * rq) / rp),
-    required * 2,
-    Math.max(1, required - 1),
-    required + 1,
-    Math.round((required * rp) / rq),
-    required + 2,
-    required * 3,
-    Math.max(1, Math.round(required / 2)),
-  ];
-  for (const x of cand) {
+  const push = (x: number) => {
     if (Number.isInteger(x) && x > 0 && !set.has(x)) {
       set.add(x);
       out.push(x);
     }
-    if (out.length >= 3) break;
-  }
+  };
+
+  const delta = kc != null && kd != null ? kd - kc : 0;
+  push(unkSide === "left" ? partner - delta : partner + delta);
+  push(unkSide === "left" ? (partner * rq) / rp : (partner * rp) / rq);
+  push(required * 2);
+  push(Math.round(required / 2));
+  push(partner);
+  [required + 1, required - 1, required + 2, required - 2].forEach(push);
+
+  const opts = out.slice(0, 3);
   let extra = required + 3;
-  while (out.length < 3) {
-    if (!set.has(extra)) {
+  while (opts.length < 3) {
+    if (extra > 0 && !set.has(extra)) {
       set.add(extra);
-      out.push(extra);
+      opts.push(extra);
     }
     extra++;
   }
-  return shuffle([required, ...out]);
+  return shuffle([required, ...opts]);
 }
 
 function inBounds(r: number, c: number) {

@@ -15,10 +15,7 @@ export function SolveModal({
   /** panel = 仅覆盖该玩家侧；screen = 全屏（单人模式） */
   scope?: "panel" | "screen";
 }) {
-  const options = useMemo(
-    () => makeOptions(info.required, info.ref),
-    [info.required, info.ref],
-  );
+  const options = useMemo(() => makeOptions(info), [info]);
 
   const pairs: string[] = [];
   for (let i = 0; i < vals.length; i += 2) {

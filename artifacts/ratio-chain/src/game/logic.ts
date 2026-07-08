@@ -28,6 +28,9 @@ export const POOL_WEIGHTS_FULL: Record<number, number> = {
   36: 3,
 };
 
+/** 长度 4 含 ? 链填对后全加上限（拦 961/1147 等爆分链，放过 111 等） */
+const UNKNOWN_FILLED_SUM_MAX = 500;
+
 export interface RoundConfig {
   weights: Record<number, number>;
   unknownProb: number;
@@ -585,6 +588,111 @@ function chainBaseScore(vals: number[]): number {
   return fullSum * lm * coef;
 }
 
+function isPathCell(grid: Grid, r: number, c: number): boolean {
+  return grid[r][c] != null;
+}
+
+function wildCountInCells(vals: Cell[]): number {
+  let n = 0;
+  for (const v of vals) if (v === WILD) n++;
+  return n;
+}
+
+function partialUnknownConsistent(vals: Cell[]): boolean {
+  let ref: string | null = null;
+  for (let i = 0; i + 1 < vals.length; i += 2) {
+    const a = vals[i];
+    const b = vals[i + 1];
+    if (a === WILD || b === WILD) continue;
+    const g = gcd(a as number, b as number);
+    const key = `${(a as number) / g}:${(b as number) / g}`;
+    if (ref == null) ref = key;
+    else if (ref !== key) return false;
+  }
+  return true;
+}
+
+/** 各 ? 格，作为长度 4 含 ? 链的搜索起点。 */
+function wildCellPositions(grid: Grid): Pos[] {
+  const out: Pos[] = [];
+  for (let r = 0; r < ROWS; r++) {
+    for (let c = 0; c < COLS; c++) {
+      if (grid[r][c] === WILD) out.push({ r, c });
+    }
+  }
+  return out;
+}
+
+/** 含 ? 链填对 ? 后的全加。 */
+function filledUnknownSum(vals: Cell[]): number {
+  const info = analyzeChain(vals);
+  if (info.type !== "unknown") return 0;
+  let sum = 0;
+  for (let i = 0; i < vals.length; i++) {
+    sum += i === info.idx ? info.required : (vals[i] as number);
+  }
+  return sum;
+}
+
+/** 从 (sr,sc) 找一条长度固定、恰含 1 个 ? 且填对后全加过高的链；找到即 true。 */
+function hasFatUnknownChainFrom(
+  grid: Grid,
+  length: number,
+  sr: number,
+  sc: number,
+): boolean {
+  const used = Array.from({ length: ROWS }, () => Array(COLS).fill(false));
+  const path: Cell[] = [];
+
+  function dfs(r: number, c: number): boolean {
+    const v = grid[r][c] as Cell;
+    used[r][c] = true;
+    path.push(v);
+
+    if (wildCountInCells(path) > 1 || !partialUnknownConsistent(path)) {
+      used[r][c] = false;
+      path.pop();
+      return false;
+    }
+
+    if (path.length === length) {
+      const bad =
+        wildCountInCells(path) === 1 &&
+        filledUnknownSum(path) > UNKNOWN_FILLED_SUM_MAX;
+      used[r][c] = false;
+      path.pop();
+      return bad;
+    }
+
+    for (const [dc, dr] of N8) {
+      const nr = r + dr;
+      const nc = c + dc;
+      if (!inBounds(nr, nc) || used[nr][nc] || !isPathCell(grid, nr, nc)) {
+        continue;
+      }
+      if (dfs(nr, nc)) {
+        used[r][c] = false;
+        path.pop();
+        return true;
+      }
+    }
+
+    used[r][c] = false;
+    path.pop();
+    return false;
+  }
+
+  return dfs(sr, sc);
+}
+
+/** 是否存在长度 4、恰含 1 个 ? 且填对后全加过高的链。 */
+function hasFatUnknownFirstStepChain(grid: Grid): boolean {
+  for (const { r, c } of wildCellPositions(grid)) {
+    if (hasFatUnknownChainFrom(grid, 4, r, c)) return true;
+  }
+  return false;
+}
+
 const CHAIN_SAMPLE_LENGTHS = [8, 6, 4];
 const CHAIN_SAMPLE_COUNT = 30;
 
@@ -627,6 +735,7 @@ const START_BOARD_RELAXED: StartBoardSpec = {
 function passesStartBoardSpec(grid: Grid, spec: StartBoardSpec): boolean {
   if (!findAnyValidChain(grid)) return false;
   if (boardRichness(grid) < spec.richnessMin) return false;
+  if (hasFatUnknownFirstStepChain(grid)) return false;
   const base = sampleFattestChainBase(grid);
   return base >= spec.baseMin && base <= spec.baseMax;
 }

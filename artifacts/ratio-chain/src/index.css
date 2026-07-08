@@ -1502,7 +1502,7 @@ body {
   .game-layout { flex-direction: column; }
   .game-layout-duo .player-panel { flex: 1 1 auto; }
   .game-layout-duo .center-hud { flex: 0 0 auto; flex-direction: row; justify-content: space-between; padding: 0.25rem 0.5rem; }
-  .modal-options { grid-template-columns: 1fr; }
+  .modal-options { grid-template-columns: repeat(2, 1fr); }
 
   /* 读数栏固定两行高度，换行时不挤推棋盘 */
   .player-panel {

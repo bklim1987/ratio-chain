@@ -664,11 +664,10 @@ body {
 .in-game-title {
   flex: none;
   text-align: center;
-  font-size: 1.6rem;
+  font-size: 1.4rem;
   font-weight: 900;
-  line-height: 1.35;
-  padding: 1.5rem 0.5rem 0.35rem;
-  padding-top: max(1.5rem, env(safe-area-inset-top, 0px));
+  line-height: 1.2;
+  padding: 0 0.25rem;
   background: linear-gradient(135deg, hsl(199 95% 62%), hsl(0 78% 58%));
   -webkit-background-clip: text;
   background-clip: text;
@@ -684,6 +683,11 @@ body {
   gap: 0.75rem;
   box-sizing: border-box;
   align-items: flex-end;
+}
+
+.game-layout-duo {
+  align-items: flex-start;
+  padding-top: max(0.75rem, env(safe-area-inset-top, 0px));
 }
 
 .game-layout-duo .player-panel { flex: 1 1 42%; }
@@ -725,7 +729,10 @@ body {
   align-items: center;
   justify-content: flex-start;
   gap: 0.5rem;
-  padding-top: 0.5rem;
+  padding-top: 0;
+}
+.center-hud .in-game-title {
+  margin-bottom: 0.1rem;
 }
 
 .hud-timer {
@@ -1532,6 +1539,11 @@ body {
   .game-layout { flex-direction: column; }
   .game-layout-duo .player-panel { flex: 1 1 auto; }
   .game-layout-duo .center-hud { flex: 0 0 auto; flex-direction: row; flex-wrap: wrap; justify-content: center; align-items: center; gap: 0.35rem 0.5rem; padding: 0.25rem 0.5rem; }
+  .game-layout-duo .center-hud .in-game-title {
+    flex: 1 1 100%;
+    font-size: 1.25rem;
+    margin-bottom: 0;
+  }
   .game-layout-duo .center-hud .hud-timer { flex: 0 0 auto; font-size: 2rem; }
   .game-layout-duo .center-hud .hud-vs { flex: 0 0 auto; }
   .game-layout-duo .center-hud .hud-controls {

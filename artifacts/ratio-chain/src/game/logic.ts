@@ -147,7 +147,7 @@ export interface BestPtsDetail {
 
 export function formatBestPtsFormula(d: BestPtsDetail): string {
   const cm = formatComboMult(comboMult(d.combo));
-  let s = `全加${d.fullSum} × 长度${d.lm} × 难度${d.coef}(${d.simp}) × 连击${d.combo} ×${cm}`;
+  let s = `全加${d.fullSum} × 长度${d.lm} × 难度${d.coef}(${d.simp}) × 连击${cm}`;
   if (d.deepHalved) s += " × 0.5（深提示减半）";
   return `${s} = ${d.points}`;
 }

@@ -24,7 +24,8 @@ export const POOL_WEIGHTS_FULL: Record<number, number> = {
   18: 7,
   20: 5,
   24: 6,
-  36: 6,
+  30: 3,
+  36: 3,
 };
 
 export interface RoundConfig {

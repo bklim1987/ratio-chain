@@ -1046,7 +1046,7 @@ body {
   100% { transform: translateY(0); opacity: 1; }
 }
 
-.gem-wild { background: linear-gradient(135deg, hsl(280 70% 45%), hsl(320 75% 50%)); }
+.gem-wild { background: hsl(245 25% 15%); }
 .gem-v1 { background: hsl(0 70% 52%); }
 .gem-v2 { background: hsl(20 80% 52%); }
 .gem-v3 { background: hsl(38 88% 50%); }
@@ -1061,6 +1061,7 @@ body {
 .gem-v18 { background: hsl(275 60% 50%); }
 .gem-v20 { background: hsl(300 55% 48%); }
 .gem-v24 { background: hsl(325 60% 48%); }
+.gem-v30 { background: linear-gradient(135deg, hsl(280 70% 45%), hsl(320 75% 50%)); }
 .gem-v36 { background: hsl(345 65% 48%); }
 
 .float-score {
@@ -1689,6 +1690,9 @@ body:has(.game-root.eye-care) {
   filter: brightness(0.88) saturate(0.62);
 }
 .game-root.eye-care .gem-wild {
+  background: hsl(245 22% 14%);
+}
+.game-root.eye-care .gem-v30 {
   background: linear-gradient(135deg, hsl(280 40% 38%), hsl(320 42% 40%));
 }
 .game-root.eye-care .cell-selected {

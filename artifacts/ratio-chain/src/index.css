@@ -1257,6 +1257,11 @@ body {
   color: hsl(245 12% 68%);
   word-break: break-word;
 }
+.stat-best-formula-note {
+  margin-top: 0.25rem;
+  font-size: 0.68rem;
+  color: hsl(245 10% 55%);
+}
 .stat-best-pts-value {
   display: block;
   font-size: 1.1rem;

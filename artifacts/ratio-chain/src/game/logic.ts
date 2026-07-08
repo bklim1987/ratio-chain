@@ -37,9 +37,13 @@ export interface RoundConfig {
 // 双人对战每一侧、练习模式（单人）都从这一份配置读取，杜绝两处漂移。
 export const ROUND_CONFIG: RoundConfig = {
   weights: POOL_WEIGHTS_FULL,
-  unknownProb: 0.1,
+  unknownProb: 0.08,
   durationSeconds: 120,
 };
+
+/** 全盘 ? 个数下限 / 上限（生成与补格后校正） */
+export const WILD_MIN = 1;
+export const WILD_MAX = 4;
 
 export function buildWeightedPool(weights: Record<number, number>): number[] {
   const arr: number[] = [];
@@ -100,8 +104,8 @@ export function lenMult(ratios: number): number {
   return LEN_MULT[ratios] ?? 7 + (ratios - 6) * 2;
 }
 
-export const COMBO_G = 0.12;
-export const COMBO_CAP = 5;
+export const COMBO_G = 0.16;
+export const COMBO_CAP = 3;
 export const SCORE_SCALE = 1;
 
 export function comboMult(combo: number): number {
@@ -109,7 +113,7 @@ export function comboMult(combo: number): number {
 }
 
 export function formatComboMult(cm: number): string {
-  return cm % 1 === 0 ? String(cm) : cm.toFixed(2);
+  return cm.toFixed(2);
 }
 
 // 难度系数（混合规则）：最简比形状 + m:n 需 ≥3 个不同数字才 ×3。
@@ -142,8 +146,8 @@ export interface BestPtsDetail {
 }
 
 export function formatBestPtsFormula(d: BestPtsDetail): string {
-  const cm = formatComboMult(d.comboMult);
-  let s = `全加${d.fullSum} × 长度${d.lm} × 难度${d.coef}(${d.simp}) × 连击${cm}`;
+  const cm = formatComboMult(comboMult(d.combo));
+  let s = `全加${d.fullSum} × 长度${d.lm} × 难度${d.coef}(${d.simp}) × 连击${d.combo} ×${cm}`;
   if (d.deepHalved) s += " × 0.5（深提示减半）";
   return `${s} = ${d.points}`;
 }
@@ -372,6 +376,102 @@ export function findChainCoords(grid: Grid, length: number): Pos[] | null {
   return null;
 }
 
+function chainPathKey(chain: Pos[]): string {
+  return chain.map((p) => `${p.r}-${p.c}`).join("|");
+}
+
+function chainDfsConsistent(path: number[]): boolean {
+  let ref: string | null = null;
+  for (let i = 0; i + 1 < path.length; i += 2) {
+    const a = path[i];
+    const b = path[i + 1];
+    const g = gcd(a, b);
+    const key = `${a / g}:${b / g}`;
+    if (ref == null) ref = key;
+    else if (ref !== key) return false;
+  }
+  return true;
+}
+
+function isKnownChainCell(grid: Grid, r: number, c: number): boolean {
+  const v = grid[r][c];
+  return v != null && v !== WILD;
+}
+
+/** 枚举棋盘上所有不重复的合法链（固定邻域顺序，保证完备）。 */
+function findAllChainCoords(grid: Grid, length: number): Pos[][] {
+  const found: Pos[][] = [];
+  const seen = new Set<string>();
+
+  for (let sr = 0; sr < ROWS; sr++) {
+    for (let sc = 0; sc < COLS; sc++) {
+      if (!isKnownChainCell(grid, sr, sc)) continue;
+
+      const used = Array.from({ length: ROWS }, () => Array(COLS).fill(false));
+      const path: number[] = [];
+      const co: Pos[] = [];
+
+      function dfs(r: number, c: number) {
+        used[r][c] = true;
+        path.push(grid[r][c] as number);
+        co.push({ r, c });
+
+        if (path.length % 2 === 0 && !chainDfsConsistent(path)) {
+          used[r][c] = false;
+          path.pop();
+          co.pop();
+          return;
+        }
+
+        if (path.length === length) {
+          if (evaluateKnown(path)) {
+            const key = chainPathKey(co);
+            if (!seen.has(key)) {
+              seen.add(key);
+              found.push([...co]);
+            }
+          }
+          used[r][c] = false;
+          path.pop();
+          co.pop();
+          return;
+        }
+
+        for (const [dc, dr] of N8) {
+          const nr = r + dr;
+          const nc = c + dc;
+          if (
+            !inBounds(nr, nc) ||
+            used[nr][nc] ||
+            !isKnownChainCell(grid, nr, nc)
+          ) {
+            continue;
+          }
+          dfs(nr, nc);
+        }
+
+        used[r][c] = false;
+        path.pop();
+        co.pop();
+      }
+
+      dfs(sr, sc);
+    }
+  }
+
+  return found;
+}
+
+/** 从全盘所有合法链中均匀随机选一条，避免「先搜到的那条」总在上半区。 */
+export function pickRandomChainCoords(
+  grid: Grid,
+  length: number,
+): Pos[] | null {
+  const all = findAllChainCoords(grid, length);
+  if (all.length === 0) return null;
+  return all[Math.floor(Math.random() * all.length)];
+}
+
 export function findAnyValidChain(grid: Grid): boolean {
   return !!findChainCoords(grid, 4);
 }
@@ -522,6 +622,74 @@ function randomGrid(pool: number[], unknownProb: number): Grid {
   );
 }
 
+function countWilds(grid: Grid): number {
+  let n = 0;
+  for (let r = 0; r < ROWS; r++) {
+    for (let c = 0; c < COLS; c++) {
+      if (grid[r][c] === WILD) n++;
+    }
+  }
+  return n;
+}
+
+/** 开局：一次性生成全盘，随机指定 1～4 个 ? 位置（不做事后改写） */
+function generateGridWithWildCount(pool: number[], wildCount: number): Grid {
+  const positions: Pos[] = [];
+  for (let r = 0; r < ROWS; r++) {
+    for (let c = 0; c < COLS; c++) positions.push({ r, c });
+  }
+  shuffle(positions);
+  const grid: Grid = Array.from({ length: ROWS }, () =>
+    Array.from({ length: COLS }, () =>
+      pool[Math.floor(Math.random() * pool.length)],
+    ),
+  );
+  for (let i = 0; i < wildCount; i++) {
+    const p = positions[i];
+    grid[p.r][p.c] = WILD;
+  }
+  return grid;
+}
+
+function fillRandomGrid(pool: number[], unknownProb: number): Grid {
+  for (let i = 0; i < 50; i++) {
+    const grid = randomGrid(pool, unknownProb);
+    const n = countWilds(grid);
+    if (n >= WILD_MIN && n <= WILD_MAX) return grid;
+  }
+  const wildCount =
+    WILD_MIN + Math.floor(Math.random() * (WILD_MAX - WILD_MIN + 1));
+  return generateGridWithWildCount(pool, wildCount);
+}
+
+/** 补格：只给新落入格赋值；已有格（含 ?）绝不改写 */
+function assignNewRefills(
+  grid: Grid,
+  newRefills: Pos[],
+  pool: number[],
+  unknownProb: number,
+  keptWildCount: number,
+): void {
+  const minNew = Math.max(0, WILD_MIN - keptWildCount);
+  const maxNew = Math.max(0, WILD_MAX - keptWildCount);
+  const slots = shuffle([...newRefills]);
+  let wildRequired = minNew;
+  let wildBudget = maxNew;
+
+  for (const { r, c } of slots) {
+    if (wildRequired > 0 && wildBudget > 0) {
+      grid[r][c] = WILD;
+      wildRequired--;
+      wildBudget--;
+    } else if (wildBudget > 0 && Math.random() < unknownProb) {
+      grid[r][c] = WILD;
+      wildBudget--;
+    } else {
+      grid[r][c] = pool[Math.floor(Math.random() * pool.length)];
+    }
+  }
+}
+
 export function cloneGrid(grid: Grid): Grid {
   return grid.map((row) => [...row]);
 }
@@ -529,7 +697,7 @@ export function cloneGrid(grid: Grid): Grid {
 export function newBoard(pool: number[], unknownProb: number): Grid {
   for (const spec of [START_BOARD_STRICT, START_BOARD_RELAXED]) {
     for (let tries = 0; tries < spec.maxTries; tries++) {
-      const grid = randomGrid(pool, unknownProb);
+      const grid = fillRandomGrid(pool, unknownProb);
       if (passesStartBoardSpec(grid, spec)) return grid;
     }
   }
@@ -537,7 +705,7 @@ export function newBoard(pool: number[], unknownProb: number): Grid {
   let grid: Grid;
   let tries = 0;
   do {
-    grid = randomGrid(pool, unknownProb);
+    grid = fillRandomGrid(pool, unknownProb);
     tries++;
   } while (!findAnyValidChain(grid) && tries < 200);
   return grid;
@@ -550,6 +718,7 @@ export function gravityAndRefill(
 ): { grid: Grid; drops: number[][] } {
   const next: Grid = grid.map((row) => [...row]);
   const drops = Array.from({ length: ROWS }, () => Array(COLS).fill(0));
+  const newRefills: Pos[] = [];
 
   for (let c = 0; c < COLS; c++) {
     const kept: { v: Cell; oldR: number }[] = [];
@@ -559,9 +728,8 @@ export function gravityAndRefill(
     const need = ROWS - kept.length;
     for (let r = 0; r < ROWS; r++) {
       if (r < need) {
-        next[r][c] = randVal(pool, unknownProb);
-        // 顶部新数字：从棋盘上方逐行落入
         drops[r][c] = r + 1;
+        newRefills.push({ r, c });
       } else {
         const { v, oldR } = kept[r - need];
         next[r][c] = v;
@@ -571,16 +739,24 @@ export function gravityAndRefill(
     }
   }
 
-  let t = 0;
-  while (!findAnyValidChain(next) && t++ < 20) {
-    for (let r = 0; r < ROWS; r++) {
-      for (let c = 0; c < COLS; c++) {
-        next[r][c] = randVal(pool, unknownProb);
-        drops[r][c] = 0;
-      }
+  const newRefillSet = new Set(newRefills.map((p) => `${p.r},${p.c}`));
+  let keptWildCount = 0;
+  for (let r = 0; r < ROWS; r++) {
+    for (let c = 0; c < COLS; c++) {
+      if (next[r][c] === WILD && !newRefillSet.has(`${r},${c}`)) keptWildCount++;
     }
   }
-  return { grid: next, drops };
+  assignNewRefills(next, newRefills, pool, unknownProb, keptWildCount);
+
+  let t = 0;
+  let filled = next;
+  while (!findAnyValidChain(filled) && t++ < 20) {
+    filled = fillRandomGrid(pool, unknownProb);
+    for (let r = 0; r < ROWS; r++) {
+      for (let c = 0; c < COLS; c++) drops[r][c] = 0;
+    }
+  }
+  return { grid: filled, drops };
 }
 
 export function adjacent(a: Pos, b: Pos): boolean {

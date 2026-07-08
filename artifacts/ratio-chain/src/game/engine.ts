@@ -12,9 +12,11 @@ import {
   analyzeChain,
   evaluateKnown,
   findChainCoords,
+  pickRandomChainCoords,
   gravityAndRefill,
   newBoard,
   formatComboMult,
+  comboMult,
   scoreKnown,
 } from "./logic";
 import { playCombo, playCorrect, playDrop, playFail, playSuccess, type Pan } from "./sound";
@@ -122,7 +124,7 @@ export class Engine {
       this.seed = [];
       return;
     }
-    const ch = findChainCoords(this.grid, 4);
+    const ch = pickRandomChainCoords(this.grid, 4);
     this.seed = ch ? [ch[0], ch[1]] : [];
   }
 
@@ -227,7 +229,7 @@ export class Engine {
         coef: res.coef,
         simp: res.simp,
         combo: res.combo,
-        comboMult: res.comboMult,
+        comboMult: comboMult(res.combo),
         deepHalved,
       };
     }

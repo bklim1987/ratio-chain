@@ -32,6 +32,9 @@ function BestPtsDetailView({ detail }: { detail: BestPtsDetail | null }) {
     <div className="stat-best-detail">
       <div className="stat-best-chain">{detail.text}</div>
       <div className="stat-best-formula">{formatBestPtsFormula(detail)}</div>
+      <div className="stat-best-formula-note">
+        连击倍率 = min(3.00, 1 + 连击×0.16)
+      </div>
     </div>
   );
 }
@@ -43,6 +46,9 @@ function BestPtsCell({ detail, pts }: { detail: BestPtsDetail | null; pts: numbe
       <div className="cmp-best-pts">{pts}</div>
       <div className="stat-best-chain">{detail.text}</div>
       <div className="stat-best-formula">{formatBestPtsFormula(detail)}</div>
+      <div className="stat-best-formula-note">
+        连击倍率 = min(3.00, 1 + 连击×0.16)
+      </div>
     </div>
   );
 }

@@ -272,16 +272,12 @@ function RatioChainGame() {
 
       {phase === "countdown" && <Countdown value={countdownVal} />}
 
-      {phase === "playing" && e1 && (
-        <>
-        <div
-          className={`game-layout ${mode === "duo" ? "game-layout-duo" : "game-layout-solo"}`}
-        >
-          <PlayerBoard engine={e1} accent="p1" label={nameA} mode={mode} />
-
-          {mode === "duo" && (
+      {phase === "playing" && e1 && mode === "duo" && (
+        <div className="game-duo-shell">
+          <div className="in-game-title">比例消消</div>
+          <div className="game-layout game-layout-duo">
+            <PlayerBoard engine={e1} accent="p1" label={nameA} mode={mode} />
             <div className="center-hud">
-              <div className="in-game-title">比例消消</div>
               <div className={`hud-timer ${timeLeft <= 10 ? "hud-timer-low" : ""}`}>
                 {timeLeft}
               </div>
@@ -292,22 +288,23 @@ function RatioChainGame() {
               </div>
               <HudControls />
             </div>
-          )}
-
-          {mode === "solo" && (
-            <div className="center-hud center-hud-solo">
-              <div className={`hud-timer ${timeLeft <= 15 ? "hud-timer-low" : ""}`}>
-                {timeLeft}
-              </div>
-              <HudControls compact />
-            </div>
-          )}
-
-          {mode === "duo" && e2 && (
-            <PlayerBoard engine={e2} mirror accent="p2" label={nameB} mode={mode} />
-          )}
+            {e2 && (
+              <PlayerBoard engine={e2} mirror accent="p2" label={nameB} mode={mode} />
+            )}
+          </div>
         </div>
-        </>
+      )}
+
+      {phase === "playing" && e1 && mode === "solo" && (
+        <div className="game-layout game-layout-solo">
+          <PlayerBoard engine={e1} accent="p1" label={nameA} mode={mode} />
+          <div className="center-hud center-hud-solo">
+            <div className={`hud-timer ${timeLeft <= 15 ? "hud-timer-low" : ""}`}>
+              {timeLeft}
+            </div>
+            <HudControls compact />
+          </div>
+        </div>
       )}
 
       {phase === "matchEnd" && e1 && (

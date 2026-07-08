@@ -686,8 +686,53 @@ body {
 }
 
 .game-layout-duo {
-  align-items: flex-start;
+  align-items: flex-end;
+  padding-top: 1.65rem;
+}
+
+.game-duo-shell {
+  position: relative;
+  flex: none;
+  width: 100%;
   padding-top: max(0.75rem, env(safe-area-inset-top, 0px));
+}
+.game-duo-shell > .in-game-title {
+  position: absolute;
+  top: max(0.75rem, env(safe-area-inset-top, 0px));
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 5;
+  pointer-events: none;
+  width: 16%;
+  min-width: 5.5rem;
+}
+
+/* 双人模式：读数栏固定两行高度，避免链变长时挤动另一方盘面 */
+.game-layout-duo .player-panel {
+  display: grid;
+  grid-template-rows: auto var(--readout-slot-h, 3.35rem) minmax(0, 1fr);
+  grid-template-areas:
+    "header"
+    "readout"
+    "board";
+}
+.game-layout-duo .player-header { grid-area: header; }
+.game-layout-duo .readout-bar {
+  grid-area: readout;
+  align-self: stretch;
+  margin: 0 0 0.5rem;
+  min-height: var(--readout-slot-h, 3.35rem);
+  max-height: var(--readout-slot-h, 3.35rem);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1.35;
+  font-size: 0.84rem;
+  overflow: hidden;
+}
+.game-layout-duo .board-shake-outer {
+  grid-area: board;
+  margin-top: 0;
 }
 
 .game-layout-duo .player-panel { flex: 1 1 42%; }
@@ -729,10 +774,7 @@ body {
   align-items: center;
   justify-content: flex-start;
   gap: 0.5rem;
-  padding-top: 0;
-}
-.center-hud .in-game-title {
-  margin-bottom: 0.1rem;
+  padding-top: 0.5rem;
 }
 
 .hud-timer {
@@ -1539,11 +1581,6 @@ body {
   .game-layout { flex-direction: column; }
   .game-layout-duo .player-panel { flex: 1 1 auto; }
   .game-layout-duo .center-hud { flex: 0 0 auto; flex-direction: row; flex-wrap: wrap; justify-content: center; align-items: center; gap: 0.35rem 0.5rem; padding: 0.25rem 0.5rem; }
-  .game-layout-duo .center-hud .in-game-title {
-    flex: 1 1 100%;
-    font-size: 1.25rem;
-    margin-bottom: 0;
-  }
   .game-layout-duo .center-hud .hud-timer { flex: 0 0 auto; font-size: 2rem; }
   .game-layout-duo .center-hud .hud-vs { flex: 0 0 auto; }
   .game-layout-duo .center-hud .hud-controls {

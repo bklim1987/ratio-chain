@@ -167,6 +167,7 @@ export function PlayerBoard({
       </div>
       <ReadoutBar engine={engine} />
       <div ref={boardRef} className="board-shake-outer">
+        <div className="board-scale-inner">
         <div ref={shakeWrapRef} className="board-shake-wrap">
           {engine.floatText && (
             <div
@@ -238,6 +239,7 @@ export function PlayerBoard({
             </div>
           )}
         </div>
+        </div>
       </div>
       {engine.modal && (
         <SolveModal
@@ -284,27 +286,25 @@ function ChainLine({
 }) {
   const gridEl = gridRef.current;
   if (!gridEl || engine.chain.length < 2) return null;
-  const gr = gridEl.getBoundingClientRect();
-  if (gr.width === 0) return null;
+  const gridW = gridEl.clientWidth;
+  const gridH = gridEl.clientHeight;
+  if (gridW === 0 || gridH === 0) return null;
   const pts: [number, number][] = [];
   for (const p of engine.chain) {
     const el = gridEl.querySelector(
       `[data-r="${p.r}"][data-c="${p.c}"]`,
     ) as HTMLElement | null;
     if (!el) return null;
-    const r = el.getBoundingClientRect();
-    pts.push([
-      r.left + r.width / 2 - gr.left,
-      r.top + r.height / 2 - gr.top,
-    ]);
+    // 使用布局坐标（非 getBoundingClientRect），与父级 scale 变换后的格子对齐
+    pts.push([el.offsetLeft + el.offsetWidth / 2, el.offsetTop + el.offsetHeight / 2]);
   }
   const points = pts.map(([x, y]) => `${x},${y}`).join(" ");
   return (
     <svg
       className={`chain-line chain-line-${accent}`}
-      width={gr.width}
-      height={gr.height}
-      viewBox={`0 0 ${gr.width} ${gr.height}`}
+      width={gridW}
+      height={gridH}
+      viewBox={`0 0 ${gridW} ${gridH}`}
       aria-hidden="true"
     >
       <polyline className="chain-line-stroke" points={points} />

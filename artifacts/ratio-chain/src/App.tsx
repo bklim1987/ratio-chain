@@ -17,6 +17,11 @@ import { StartMenu } from "@/components/StartMenu";
 import { Countdown } from "@/components/Countdown";
 import { PlayerBoard } from "@/components/PlayerBoard";
 import { MatchEndScreen } from "@/components/ResultsScreen";
+import {
+  loadDisplayPrefs,
+  saveDisplayPrefs,
+  type DisplayPrefs,
+} from "@/game/displayPrefs";
 
 const queryClient = new QueryClient();
 
@@ -38,6 +43,7 @@ function RatioChainGame() {
   const [timeLeft, setTimeLeft] = useState(ROUND_SECONDS);
   const [countdownVal, setCountdownVal] = useState(3);
   const [, forceTick] = useState(0);
+  const [displayPrefs, setDisplayPrefs] = useState<DisplayPrefs>(loadDisplayPrefs);
 
   const engine1Ref = useRef<Engine | null>(null);
   const engine2Ref = useRef<Engine | null>(null);
@@ -53,6 +59,21 @@ function RatioChainGame() {
   useEffect(() => {
     setMuted(muted);
   }, [muted]);
+
+  useEffect(() => {
+    saveDisplayPrefs(displayPrefs);
+  }, [displayPrefs]);
+
+  function toggleBoardScale() {
+    setDisplayPrefs((p) => ({
+      ...p,
+      boardScale: p.boardScale === 0.8 ? 1 : 0.8,
+    }));
+  }
+
+  function toggleEyeCare() {
+    setDisplayPrefs((p) => ({ ...p, eyeCare: !p.eyeCare }));
+  }
 
   // 锦标赛模式：跳过首页菜单，直接进入 duo 单场决胜。
   const tournamentStartedRef = useRef(false);
@@ -204,9 +225,39 @@ function RatioChainGame() {
   const e1 = engine1Ref.current;
   const e2 = engine2Ref.current;
 
+  const { boardScale, eyeCare } = displayPrefs;
+  const gameRootClass = [
+    "game-root",
+    phase === "playing" && mode === "duo" ? "game-root-bottom" : "",
+    boardScale === 1 ? "board-scale-full" : "",
+    eyeCare ? "eye-care" : "display-vivid",
+  ]
+    .filter(Boolean)
+    .join(" ");
+
+  function HudControls({ compact = false }: { compact?: boolean }) {
+    return (
+      <div className={`hud-controls${compact ? " hud-controls-compact" : ""}`}>
+        <button
+          type="button"
+          className="hud-mute-btn"
+          onClick={() => setMutedState((m) => !m)}
+        >
+          {muted ? "🔇 静音" : "🔊 音效"}
+        </button>
+        <button type="button" className="hud-mute-btn" onClick={toggleBoardScale}>
+          {boardScale === 0.8 ? "🔍 放大" : "🔍 原尺寸"}
+        </button>
+        <button type="button" className="hud-mute-btn" onClick={toggleEyeCare}>
+          {eyeCare ? "🎨 鲜艳" : "👁 护眼"}
+        </button>
+      </div>
+    );
+  }
+
   return (
     <div
-      className={`game-root ${phase === "playing" && mode === "duo" ? "game-root-bottom" : ""}`}
+      className={gameRootClass}
       onContextMenu={(e) => e.preventDefault()}
     >
       {phase === "menu" && !IS_TOURNAMENT && (
@@ -239,12 +290,7 @@ function RatioChainGame() {
                 <span>:</span>
                 <span>{e2?.score ?? 0}</span>
               </div>
-              <button
-                className="hud-mute-btn"
-                onClick={() => setMutedState((m) => !m)}
-              >
-                {muted ? "🔇 静音" : "🔊 音效"}
-              </button>
+              <HudControls />
             </div>
           )}
 
@@ -253,6 +299,7 @@ function RatioChainGame() {
               <div className={`hud-timer ${timeLeft <= 15 ? "hud-timer-low" : ""}`}>
                 {timeLeft}
               </div>
+              <HudControls compact />
             </div>
           )}
 

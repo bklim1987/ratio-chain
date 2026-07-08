@@ -1175,7 +1175,7 @@ body {
 .modal-question { font-size: 1.6rem; font-weight: 900; margin-bottom: 1.25rem; color: hsl(45 90% 65%); }
 .modal-options {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: repeat(3, 1fr);
   gap: 0.75rem;
 }
 .modal-option-btn {

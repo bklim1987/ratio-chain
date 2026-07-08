@@ -270,6 +270,8 @@ export function analyzeChain(vals: Cell[]): ChainAnalysis {
   };
 }
 
+const DISTRACTOR_COUNT = 5;
+
 export function makeOptions(info: UnknownChainInfo): number[] {
   const { required, ref, unkSide, partner, kc, kd } = info;
   const [rp, rq] = ref;
@@ -287,12 +289,17 @@ export function makeOptions(info: UnknownChainInfo): number[] {
   push(unkSide === "left" ? (partner * rq) / rp : (partner * rp) / rq);
   push(required * 2);
   push(Math.round(required / 2));
-  push(partner);
-  [required + 1, required - 1, required + 2, required - 2].forEach(push);
+  [required + 10, required - 10, required + 20, required - 20].forEach(push);
+  if (kc != null) push(kc);
+  if (kd != null) push(kd);
+  push(required * 3);
+  [required + 1, required - 1, required + 2, required - 2, required + 3, required - 3].forEach(
+    push,
+  );
 
-  const opts = out.slice(0, 3);
-  let extra = required + 3;
-  while (opts.length < 3) {
+  const opts = out.slice(0, DISTRACTOR_COUNT);
+  let extra = required + 4;
+  while (opts.length < DISTRACTOR_COUNT) {
     if (extra > 0 && !set.has(extra)) {
       set.add(extra);
       opts.push(extra);

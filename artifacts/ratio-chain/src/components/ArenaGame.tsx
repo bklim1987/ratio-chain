@@ -7,6 +7,11 @@ import {
   cloneGrid,
   newBoard,
 } from "@/game/logic";
+import {
+  loadDisplayPrefs,
+  saveDisplayPrefs,
+  type DisplayPrefs,
+} from "@/game/displayPrefs";
 import { clearBoardSeed, setBoardSeed } from "@/game/rng";
 import { setMuted } from "@/game/sound";
 
@@ -39,6 +44,9 @@ export function ArenaGame() {
   const [initialized, setInitialized] = useState(false);
   const [timeLeft, setTimeLeft] = useState(ROUND_CONFIG.durationSeconds);
   const [playerName, setPlayerName] = useState("玩家");
+  const [muted, setMutedState] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [displayPrefs, setDisplayPrefs] = useState<DisplayPrefs>(loadDisplayPrefs);
   const [, forceTick] = useState(0);
 
   const engineRef = useRef<Engine | null>(null);
@@ -48,10 +56,36 @@ export function ArenaGame() {
   const rafRef = useRef<number | null>(null);
   const startTimeRef = useRef(0);
   const finishSentRef = useRef(false);
-  const phaseRef = useRef(phase);
-  phaseRef.current = phase;
 
   const rerender = useCallback(() => forceTick((t) => t + 1), []);
+
+  useEffect(() => {
+    setMuted(muted);
+  }, [muted]);
+
+  useEffect(() => {
+    saveDisplayPrefs(displayPrefs);
+  }, [displayPrefs]);
+
+  const { boardScale, eyeCare } = displayPrefs;
+  const gameRootClass = [
+    "game-root",
+    boardScale === 1 ? "board-scale-full" : "",
+    eyeCare ? "eye-care" : "display-vivid",
+  ]
+    .filter(Boolean)
+    .join(" ");
+
+  function toggleBoardScale() {
+    setDisplayPrefs((p) => ({
+      ...p,
+      boardScale: p.boardScale === 0.8 ? 1 : 0.8,
+    }));
+  }
+
+  function toggleEyeCare() {
+    setDisplayPrefs((p) => ({ ...p, eyeCare: !p.eyeCare }));
+  }
 
   const postToPlatformRef = useRef((msg: Record<string, unknown>) => {
     const payload = { v: 1, ...msg };
@@ -144,6 +178,7 @@ export function ArenaGame() {
             : null;
         if (config && typeof config.muted === "boolean") {
           setMuted(config.muted);
+          setMutedState(config.muted);
         }
 
         arenaModeRef.current = m.mode === "practice" ? "practice" : "match";
@@ -249,7 +284,7 @@ export function ArenaGame() {
 
   return (
     <div
-      className="game-root display-vivid"
+      className={gameRootClass}
       style={{ width: "100%", height: "100%", minHeight: "100vh" }}
       onContextMenu={(e) => e.preventDefault()}
     >
@@ -259,6 +294,59 @@ export function ArenaGame() {
             <div className="in-game-title">比例消消</div>
             <p style={{ marginTop: "1rem", fontSize: "1.25rem" }}>待命中…</p>
           </div>
+        </div>
+      )}
+
+      {initialized && (
+        <div
+          style={{
+            position: "fixed",
+            top: "0.5rem",
+            right: "0.5rem",
+            zIndex: 40,
+          }}
+        >
+          <button
+            type="button"
+            className="hud-mute-btn"
+            aria-expanded={settingsOpen}
+            aria-label="显示设置"
+            onClick={() => setSettingsOpen((open) => !open)}
+            style={{ minWidth: 44, minHeight: 44, fontSize: "1.25rem" }}
+          >
+            ⚙
+          </button>
+          {settingsOpen && (
+            <div
+              className="hud-controls"
+              style={{
+                position: "absolute",
+                top: "100%",
+                right: 0,
+                marginTop: "0.35rem",
+                width: "auto",
+                minWidth: "7.5rem",
+              }}
+            >
+              <button
+                type="button"
+                className="hud-mute-btn"
+                onClick={() => setMutedState((m) => !m)}
+              >
+                {muted ? "🔇 静音" : "🔊 音效"}
+              </button>
+              <button
+                type="button"
+                className="hud-mute-btn"
+                onClick={toggleBoardScale}
+              >
+                {boardScale === 0.8 ? "🔍 放大" : "🔍 原尺寸"}
+              </button>
+              <button type="button" className="hud-mute-btn" onClick={toggleEyeCare}>
+                {eyeCare ? "🎨 鲜艳" : "👁 护眼"}
+              </button>
+            </div>
+          )}
         </div>
       )}
 
@@ -283,20 +371,6 @@ export function ArenaGame() {
                 待开赛
               </div>
             )}
-          </div>
-        </div>
-      )}
-
-      {phase === "frozen" && engine && (
-        <div className="overlay-screen">
-          <div className="overlay-card">
-            <div className="in-game-title">比例消消</div>
-            <p style={{ marginTop: "1rem", fontSize: "1.5rem" }}>
-              本局得分：{engine.score}
-            </p>
-            <p style={{ marginTop: "0.5rem", opacity: 0.85 }}>
-              最长链：{bestChainSegments(engine)} 段
-            </p>
           </div>
         </div>
       )}

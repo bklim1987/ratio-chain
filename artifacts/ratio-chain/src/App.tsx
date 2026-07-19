@@ -14,6 +14,7 @@ import { Engine } from "@/game/engine";
 import type { Mode, Phase } from "@/game/types";
 import { setMuted, playCountdownBeep, playCountdownTick, playGo, playResultsFanfare } from "@/game/sound";
 import { StartMenu } from "@/components/StartMenu";
+import { ArenaGame } from "@/components/ArenaGame";
 import { Countdown } from "@/components/Countdown";
 import { PlayerBoard } from "@/components/PlayerBoard";
 import { MatchEndScreen } from "@/components/ResultsScreen";
@@ -31,6 +32,7 @@ const ROUND_SECONDS = ROUND_CONFIG.durationSeconds;
 // 独立运行（无 mode 参数）时以下常量不影响任何行为。
 const tournamentParams = new URLSearchParams(window.location.search);
 const IS_TOURNAMENT = tournamentParams.get("mode") === "tournament";
+const IS_ARENA = tournamentParams.get("mode") === "arena";
 const TOURNAMENT_MATCH_ID = tournamentParams.get("matchId") || "";
 const TOURNAMENT_NAME_A = tournamentParams.get("teamA") || "玩家 A";
 const TOURNAMENT_NAME_B = tournamentParams.get("teamB") || "玩家 B";
@@ -333,6 +335,17 @@ function Router() {
 }
 
 function App() {
+  if (IS_ARENA) {
+    return (
+      <QueryClientProvider client={queryClient}>
+        <TooltipProvider>
+          <ArenaGame />
+          <Toaster />
+        </TooltipProvider>
+      </QueryClientProvider>
+    );
+  }
+
   return (
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>

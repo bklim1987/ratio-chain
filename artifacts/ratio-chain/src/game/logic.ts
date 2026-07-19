@@ -1,3 +1,5 @@
+import { rand } from "./rng";
+
 export const WILD = "?" as const;
 export type Cell = number | typeof WILD;
 export type Grid = (Cell | null)[][];
@@ -64,7 +66,7 @@ export function gcd(a: number, b: number): number {
 export function shuffle<T>(arr: T[]): T[] {
   const a = [...arr];
   for (let i = a.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
+    const j = Math.floor(rand() * (i + 1));
     [a[i], a[j]] = [a[j], a[i]];
   }
   return a;
@@ -83,9 +85,9 @@ const N8: [number, number][] = [
 ];
 
 export function randVal(pool: number[], unknownProb: number): Cell {
-  return Math.random() < unknownProb
+  return rand() < unknownProb
     ? WILD
-    : pool[Math.floor(Math.random() * pool.length)];
+    : pool[Math.floor(rand() * pool.length)];
 }
 
 export function evaluateKnown(vals: Cell[]): boolean {
@@ -765,7 +767,7 @@ function generateGridWithWildCount(pool: number[], wildCount: number): Grid {
   shuffle(positions);
   const grid: Grid = Array.from({ length: ROWS }, () =>
     Array.from({ length: COLS }, () =>
-      pool[Math.floor(Math.random() * pool.length)],
+      pool[Math.floor(rand() * pool.length)],
     ),
   );
   for (let i = 0; i < wildCount; i++) {
@@ -782,7 +784,7 @@ function fillRandomGrid(pool: number[], unknownProb: number): Grid {
     if (n >= WILD_MIN && n <= WILD_MAX) return grid;
   }
   const wildCount =
-    WILD_MIN + Math.floor(Math.random() * (WILD_MAX - WILD_MIN + 1));
+    WILD_MIN + Math.floor(rand() * (WILD_MAX - WILD_MIN + 1));
   return generateGridWithWildCount(pool, wildCount);
 }
 
@@ -805,11 +807,11 @@ function assignNewRefills(
       grid[r][c] = WILD;
       wildRequired--;
       wildBudget--;
-    } else if (wildBudget > 0 && Math.random() < unknownProb) {
+    } else if (wildBudget > 0 && rand() < unknownProb) {
       grid[r][c] = WILD;
       wildBudget--;
     } else {
-      grid[r][c] = pool[Math.floor(Math.random() * pool.length)];
+      grid[r][c] = pool[Math.floor(rand() * pool.length)];
     }
   }
 }

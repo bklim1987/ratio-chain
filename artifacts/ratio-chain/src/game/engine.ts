@@ -88,6 +88,7 @@ export class Engine {
   pan: Pan;
   private timers: number[] = [];
   private onChange: () => void;
+  private onScoreDelta?: (delta: number) => void;
 
   constructor(
     pool: number[],
@@ -95,10 +96,12 @@ export class Engine {
     onChange: () => void,
     pan: Pan = 0,
     initialGrid?: Grid,
+    onScoreDelta?: (delta: number) => void,
   ) {
     this.pool = pool;
     this.unknownProb = unknownProb;
     this.onChange = onChange;
+    this.onScoreDelta = onScoreDelta;
     this.pan = pan;
     this.grid = initialGrid ?? newBoard(pool, unknownProb);
     this.computeSeed();
@@ -216,7 +219,9 @@ export class Engine {
       note += "（深提示减半）";
       this.deepPenalty = false;
     }
+    const prev = this.score;
     this.score += points;
+    this.onScoreDelta?.(this.score - prev);
     this.bestCombo = Math.max(this.bestCombo, res.combo);
     this.bestChain = Math.max(this.bestChain, this.chain.length);
     if (points > this.bestPts) {
@@ -437,7 +442,9 @@ export class Engine {
     this.grid = initialGrid ?? newBoard(pool, unknownProb);
     this.chain = [];
     this.dragging = false;
+    const prevScore = this.score;
     this.score = 0;
+    this.onScoreDelta?.(this.score - prevScore);
     this.combo = 0;
     this.bestCombo = 0;
     this.bestChain = 0;

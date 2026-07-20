@@ -37,6 +37,13 @@ const TOURNAMENT_MATCH_ID = tournamentParams.get("matchId") || "";
 const TOURNAMENT_NAME_A = tournamentParams.get("teamA") || "玩家 A";
 const TOURNAMENT_NAME_B = tournamentParams.get("teamB") || "玩家 B";
 
+/** Wouter base from Vite BASE_URL; relative `./` at site root must be "" not "." */
+function routerBase(): string {
+  const raw = import.meta.env.BASE_URL;
+  if (raw === "./" || raw === "." || raw === "/") return "";
+  return raw.replace(/\/$/, "");
+}
+
 function RatioChainGame() {
   const [phase, setPhase] = useState<Phase>("menu");
   const [mode, setMode] = useState<Mode>("duo");
@@ -349,7 +356,7 @@ function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
-        <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, "")}>
+        <WouterRouter base={routerBase()}>
           <Router />
         </WouterRouter>
         <Toaster />

@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { PlayerBoard } from "@/components/PlayerBoard";
+import { MatchEndScreen } from "@/components/ResultsScreen";
+import { RulesOverlay } from "@/components/RulesOverlay";
 import { Engine } from "@/game/engine";
 import {
   ROUND_CONFIG,
@@ -23,6 +25,7 @@ const MANIFEST = {
   scoreFormat: "number",
   supportsInteraction: false,
   extraFields: ["bestChain"],
+  ownsSettlement: true,
 } as const;
 
 type ArenaPhase = "waiting" | "playing" | "frozen";
@@ -46,6 +49,8 @@ export function ArenaGame() {
   const [playerName, setPlayerName] = useState("玩家");
   const [muted, setMutedState] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [rulesOpen, setRulesOpen] = useState(false);
+  const [arenaMode, setArenaMode] = useState<"match" | "practice">("match");
   const [displayPrefs, setDisplayPrefs] = useState<DisplayPrefs>(loadDisplayPrefs);
   const [, forceTick] = useState(0);
 
@@ -182,6 +187,7 @@ export function ArenaGame() {
         }
 
         arenaModeRef.current = m.mode === "practice" ? "practice" : "match";
+        setArenaMode(arenaModeRef.current);
         finishSentRef.current = false;
 
         if (typeof m.playerName === "string" && m.playerName.trim()) {
@@ -306,16 +312,31 @@ export function ArenaGame() {
             zIndex: 40,
           }}
         >
-          <button
-            type="button"
-            className="hud-mute-btn"
-            aria-expanded={settingsOpen}
-            aria-label="显示设置"
-            onClick={() => setSettingsOpen((open) => !open)}
-            style={{ minWidth: 44, minHeight: 44, fontSize: "1.25rem" }}
+          <div
+            className="hud-controls hud-controls-compact"
+            style={{ flexDirection: "row", width: "auto", marginTop: 0 }}
           >
-            ⚙
-          </button>
+            {arenaMode === "practice" && (
+              <button
+                type="button"
+                className="hud-mute-btn"
+                onClick={() => setRulesOpen(true)}
+                style={{ minWidth: 44, minHeight: 44 }}
+              >
+                📖 玩法
+              </button>
+            )}
+            <button
+              type="button"
+              className="hud-mute-btn"
+              aria-expanded={settingsOpen}
+              aria-label="显示设置"
+              onClick={() => setSettingsOpen((open) => !open)}
+              style={{ minWidth: 44, minHeight: 44, fontSize: "1.25rem" }}
+            >
+              ⚙
+            </button>
+          </div>
           {settingsOpen && (
             <div
               className="hud-controls"
@@ -350,6 +371,8 @@ export function ArenaGame() {
         </div>
       )}
 
+      {rulesOpen && <RulesOverlay onClose={() => setRulesOpen(false)} />}
+
       {initialized && engine && (
         <div className="game-layout game-layout-solo">
           <PlayerBoard
@@ -373,6 +396,17 @@ export function ArenaGame() {
             )}
           </div>
         </div>
+      )}
+
+      {phase === "frozen" && engine && (
+        <MatchEndScreen
+          mode="solo"
+          engine1={engine}
+          engine2={null}
+          tournament
+          onReplay={() => {}}
+          onMenu={() => {}}
+        />
       )}
     </div>
   );

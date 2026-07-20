@@ -26,16 +26,18 @@ const RULES: ReactNode[] = [
 export function RulesOverlay({ onClose }: { onClose: () => void }) {
   return (
     <div className="overlay-screen" onClick={onClose}>
-      <div className="overlay-card" onClick={(e) => e.stopPropagation()}>
+      <div className="overlay-card overlay-card-rules" onClick={(e) => e.stopPropagation()}>
         <h2 className="overlay-title">玩法说明</h2>
-        <ol className="rules-modal-list">
-          {RULES.map((rule, i) => (
-            <li key={i} className="rules-modal-item">
-              <span className="rules-modal-num">{i + 1}</span>
-              <span className="rules-modal-text">{rule}</span>
-            </li>
-          ))}
-        </ol>
+        <div className="rules-modal-scroll">
+          <ol className="rules-modal-list">
+            {RULES.map((rule, i) => (
+              <li key={i} className="rules-modal-item">
+                <span className="rules-modal-num">{i + 1}</span>
+                <span className="rules-modal-text">{rule}</span>
+              </li>
+            ))}
+          </ol>
+        </div>
         <button className="menu-start-btn" onClick={onClose}>
           知道了
         </button>

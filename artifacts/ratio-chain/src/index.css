@@ -638,6 +638,38 @@ body {
 }
 .rules-modal-text b { color: hsl(45 90% 68%); }
 
+.overlay-card-rules {
+  display: flex;
+  flex-direction: column;
+  width: min(520px, 92vw);
+  max-height: min(90vh, 640px);
+  padding: 1.25rem 1.5rem 1.5rem;
+}
+.overlay-card-rules .overlay-title {
+  flex: none;
+  margin-bottom: 0.5rem;
+}
+.overlay-card-rules .menu-start-btn {
+  flex: none;
+  margin-top: 0.25rem;
+}
+.rules-modal-scroll {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+  margin-bottom: 0.75rem;
+  padding-right: 0.25rem;
+}
+.rules-modal-scroll::-webkit-scrollbar {
+  width: 6px;
+}
+.rules-modal-scroll::-webkit-scrollbar-thumb {
+  background: hsl(245 15% 35%);
+  border-radius: 999px;
+}
+
 /* ---------- Countdown ---------- */
 .countdown-screen {
   height: 100%;
